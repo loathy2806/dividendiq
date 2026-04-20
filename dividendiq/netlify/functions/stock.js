@@ -1,120 +1,26 @@
 /**
- * DividendIQ — Yahoo Finance Proxy (JavaScript)
- * Kostenlos, kein API Key, schnell.
- * Verwendet Yahoo Finance v8 API (inoffiziell aber sehr stabil)
+ * DividendIQ — Netlify Function: Finnhub Proxy
+ * Kostenlos: 60 Calls/Minute, kein Kreditkarte nötig
+ * Docs: https://finnhub.io/docs/api
  */
 
+const BASE = 'https://finnhub.io/api/v1';
 const cache = new Map();
 const TTL = {
-  quote:    2  * 60 * 1000,   // 2 min
-  search:   5  * 60 * 1000,   // 5 min
-  history:  60 * 60 * 1000,   // 1 hour
-  dividends:6  * 60 * 60 * 1000,
-  profile:  24 * 60 * 60 * 1000,
+  quote:     2  * 60 * 1000,
+  profile:   24 * 60 * 60 * 1000,
+  dividends: 6  * 60 * 60 * 1000,
+  history:   60 * 60 * 1000,
+  search:    10 * 60 * 1000,
+  metrics:   12 * 60 * 60 * 1000,
 };
 
-const YF_BASE = 'https://query1.finance.yahoo.com';
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-  'Accept': 'application/json',
-};
-
-async function yfFetch(url) {
-  const res = await fetch(url, { headers: HEADERS });
-  if (!res.ok) throw new Error(`Yahoo Finance returned ${res.status}`);
+async function fhFetch(path, apiKey) {
+  const sep = path.includes('?') ? '&' : '?';
+  const url = `${BASE}${path}${sep}token=${apiKey}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Finnhub ${res.status}: ${res.statusText}`);
   return res.json();
-}
-
-async function getQuote(symbol) {
-  const url = `${YF_BASE}/v8/finance/quote?symbols=${symbol}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,dividendYield,trailingAnnualDividendRate,marketCap,trailingPE,fiftyTwoWeekHigh,fiftyTwoWeekLow,longName,shortName,fullExchangeName`;
-  const data = await yfFetch(url);
-  const results = data?.quoteResponse?.result || [];
-  return results.map(q => ({
-    symbol:           q.symbol,
-    name:             q.longName || q.shortName || q.symbol,
-    price:            parseFloat((q.regularMarketPrice || 0).toFixed(2)),
-    change:           parseFloat((q.regularMarketChange || 0).toFixed(2)),
-    changePercentage: parseFloat((q.regularMarketChangePercent || 0).toFixed(4)),
-    dividendYield:    q.dividendYield || 0,          // already decimal e.g. 0.0272
-    trailingDividend: q.trailingAnnualDividendRate || 0,
-    marketCap:        q.marketCap || 0,
-    pe:               q.trailingPE || 0,
-    yearHigh:         q.fiftyTwoWeekHigh || 0,
-    yearLow:          q.fiftyTwoWeekLow  || 0,
-    exchange:         q.fullExchangeName || '',
-  }));
-}
-
-async function getProfile(symbol) {
-  const url = `${YF_BASE}/v10/finance/quoteSummary/${symbol}?modules=assetProfile,summaryDetail`;
-  const data = await yfFetch(url);
-  const profile = data?.quoteSummary?.result?.[0]?.assetProfile || {};
-  const summary = data?.quoteSummary?.result?.[0]?.summaryDetail || {};
-  return [{
-    symbol,
-    companyName:      profile.longName || symbol,
-    sector:           profile.sector || '',
-    industry:         profile.industry || '',
-    country:          profile.country || '',
-    exchange:         profile.exchange || '',
-    exchangeShortName:profile.exchange || '',
-    description:      profile.longBusinessSummary || '',
-    website:          profile.website || '',
-    employees:        profile.fullTimeEmployees || 0,
-    dividendYield:    summary.dividendYield?.raw || 0,
-    payoutRatio:      summary.payoutRatio?.raw || 0,
-  }];
-}
-
-async function getDividends(symbol) {
-  const url = `${YF_BASE}/v8/finance/chart/${symbol}?range=5y&interval=3mo&events=div`;
-  const data = await yfFetch(url);
-  const events = data?.chart?.result?.[0]?.events?.dividends || {};
-  const divs = Object.values(events)
-    .sort((a,b) => b.date - a.date)
-    .slice(0, 24)
-    .map(d => ({
-      date:        new Date(d.date * 1000).toISOString().slice(0,10),
-      dividend:    parseFloat((d.amount || 0).toFixed(4)),
-      adjDividend: parseFloat((d.amount || 0).toFixed(4)),
-      recordDate:  new Date(d.date * 1000).toISOString().slice(0,10),
-      paymentDate: new Date(d.date * 1000).toISOString().slice(0,10),
-    }));
-  return divs;
-}
-
-async function getHistory(symbol, from, to) {
-  const fromTs = Math.floor(new Date(from).getTime() / 1000);
-  const toTs   = Math.floor(new Date(to).getTime()   / 1000);
-  const url = `${YF_BASE}/v8/finance/chart/${symbol}?period1=${fromTs}&period2=${toTs}&interval=1d`;
-  const data = await yfFetch(url);
-  const result = data?.chart?.result?.[0];
-  if (!result) return [];
-  const timestamps = result.timestamp || [];
-  const closes     = result.indicators?.quote?.[0]?.close || [];
-  return timestamps
-    .map((ts, i) => ({
-      date:  new Date(ts * 1000).toISOString().slice(0,10),
-      close: parseFloat((closes[i] || 0).toFixed(2)),
-    }))
-    .filter(d => d.close > 0)
-    .reverse();
-}
-
-async function search(query) {
-  const url = `${YF_BASE}/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0&listsCount=0`;
-  const data = await yfFetch(url);
-  const quotes = data?.quotes || [];
-  return quotes
-    .filter(q => q.quoteType === 'EQUITY' || q.quoteType === 'ETF')
-    .slice(0, 8)
-    .map(q => ({
-      symbol:           q.symbol,
-      name:             q.longname || q.shortname || q.symbol,
-      exchange:         q.exchange || '',
-      exchangeShortName:q.exchDisp || q.exchange || '',
-      currency:         q.currency || 'USD',
-    }));
 }
 
 exports.handler = async (event) => {
@@ -128,12 +34,19 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers: CORS, body: '' };
   }
 
+  const apiKey = process.env.FINNHUB_API_KEY;
+  if (!apiKey) {
+    return { statusCode: 500, headers: CORS,
+      body: JSON.stringify({ error: 'FINNHUB_API_KEY not set in environment variables' }) };
+  }
+
   const params   = event.queryStringParameters || {};
-  const endpoint = params.endpoint;
+  const endpoint = params.endpoint || '';
   const symbol   = (params.symbol || '').toUpperCase().trim();
 
   if (!endpoint) {
-    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Missing endpoint' }) };
+    return { statusCode: 400, headers: CORS,
+      body: JSON.stringify({ error: 'Missing endpoint parameter' }) };
   }
 
   // Cache check
@@ -146,32 +59,146 @@ exports.handler = async (event) => {
 
   try {
     let result;
-    const today = new Date().toISOString().slice(0,10);
-    const from2Y = new Date(Date.now() - 730*86400000).toISOString().slice(0,10);
 
-    switch(endpoint) {
-      case 'quote':
-      case 'bulk-quote':
-        result = await getQuote(symbol);
-        break;
-      case 'profile':
-        result = await getProfile(symbol);
-        break;
-      case 'dividends':
-        result = await getDividends(symbol);
-        break;
-      case 'history':
-        result = await getHistory(symbol, params.from || from2Y, params.to || today);
-        break;
-      case 'search':
-        result = await search(params.query || symbol);
-        break;
-      case 'metrics':
-        const pr = await getProfile(symbol);
-        result = [{ symbol, payoutRatio: pr[0]?.payoutRatio || 0 }];
-        break;
-      default:
-        return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: `Unknown endpoint: ${endpoint}` }) };
+    // ── QUOTE (single or bulk) ──────────────────────────────
+    if (endpoint === 'quote' || endpoint === 'bulk-quote') {
+      const tickers = symbol.split(',').map(s => s.trim()).filter(Boolean);
+      const results = await Promise.all(tickers.map(async t => {
+        try {
+          const [q, p] = await Promise.all([
+            fhFetch(`/quote?symbol=${t}`, apiKey),
+            fhFetch(`/stock/profile2?symbol=${t}`, apiKey),
+          ]);
+          const divYield = (p.dividendYield || 0) / 100; // Finnhub gives % → convert to decimal
+          return {
+            symbol:           t,
+            name:             p.name || t,
+            price:            parseFloat((q.c || 0).toFixed(2)),   // c = current price
+            change:           parseFloat((q.d || 0).toFixed(2)),   // d = change
+            changePercentage: parseFloat((q.dp || 0).toFixed(4)),  // dp = change %
+            dividendYield:    divYield,
+            trailingDividend: (p.dividendYield || 0),
+            marketCap:        p.marketCapitalization ? p.marketCapitalization * 1e6 : 0,
+            pe:               p.peNormalizedAnnual || 0,
+            yearHigh:         q['52WeekHigh'] || 0,
+            yearLow:          q['52WeekLow']  || 0,
+            exchange:         p.exchange || '',
+          };
+        } catch(e) {
+          return { symbol: t, error: e.message, price: 0 };
+        }
+      }));
+      result = results;
+    }
+
+    // ── PROFILE ─────────────────────────────────────────────
+    else if (endpoint === 'profile') {
+      const p = await fhFetch(`/stock/profile2?symbol=${symbol}`, apiKey);
+      result = [{
+        symbol,
+        companyName:      p.name || symbol,
+        sector:           p.finnhubIndustry || '',
+        industry:         p.finnhubIndustry || '',
+        country:          p.country || '',
+        exchange:         p.exchange || '',
+        exchangeShortName:p.exchange || '',
+        description:      '', // Finnhub free plan doesn't include description
+        website:          p.weburl || '',
+        employees:        p.employeeTotal || 0,
+        logo:             p.logo || '',
+        dividendYield:    (p.dividendYield || 0) / 100,
+        marketCap:        p.marketCapitalization ? p.marketCapitalization * 1e6 : 0,
+      }];
+    }
+
+    // ── DIVIDENDS ────────────────────────────────────────────
+    else if (endpoint === 'dividends') {
+      const from = new Date(Date.now() - 5*365*86400000).toISOString().slice(0,10);
+      const to   = new Date().toISOString().slice(0,10);
+      const data = await fhFetch(`/stock/dividend?symbol=${symbol}&from=${from}&to=${to}`, apiKey);
+      if (!Array.isArray(data) || !data.length) {
+        result = [];
+      } else {
+        result = data
+          .sort((a,b) => new Date(b.date) - new Date(a.date))
+          .slice(0, 24)
+          .map(d => ({
+            date:        d.date,
+            dividend:    parseFloat((d.amount || 0).toFixed(4)),
+            adjDividend: parseFloat((d.adjustedAmount || d.amount || 0).toFixed(4)),
+            recordDate:  d.recordDate  || d.date,
+            paymentDate: d.payDate     || d.date,
+            exDate:      d.date,
+          }));
+      }
+    }
+
+    // ── HISTORY ──────────────────────────────────────────────
+    else if (endpoint === 'history') {
+      const from = params.from || new Date(Date.now()-730*86400000).toISOString().slice(0,10);
+      const to   = params.to   || new Date().toISOString().slice(0,10);
+      // Finnhub candles uses unix timestamps
+      const fromTs = Math.floor(new Date(from).getTime()/1000);
+      const toTs   = Math.floor(new Date(to).getTime()/1000);
+      const data = await fhFetch(
+        `/stock/candle?symbol=${symbol}&resolution=D&from=${fromTs}&to=${toTs}`, apiKey);
+      if (!data || data.s === 'no_data' || !data.c) {
+        result = [];
+      } else {
+        result = data.t.map((ts, i) => ({
+          date:  new Date(ts*1000).toISOString().slice(0,10),
+          close: parseFloat((data.c[i] || 0).toFixed(2)),
+          open:  parseFloat((data.o[i] || 0).toFixed(2)),
+          high:  parseFloat((data.h[i] || 0).toFixed(2)),
+          low:   parseFloat((data.l[i] || 0).toFixed(2)),
+          volume:data.v[i] || 0,
+        })).reverse(); // newest first
+      }
+    }
+
+    // ── SEARCH ───────────────────────────────────────────────
+    else if (endpoint === 'search') {
+      const query = params.query || symbol;
+      const data  = await fhFetch(`/search?q=${encodeURIComponent(query)}`, apiKey);
+      const items = data?.result || [];
+      result = items
+        .filter(s => s.type === 'Common Stock' || s.type === 'EQS' || !s.type)
+        .slice(0, 8)
+        .map(s => ({
+          symbol:           s.symbol,
+          name:             s.description || s.symbol,
+          exchange:         s.primaryExch || '',
+          exchangeShortName:s.primaryExch || '',
+          currency:         'USD',
+        }));
+    }
+
+    // ── METRICS ──────────────────────────────────────────────
+    else if (endpoint === 'metrics') {
+      const data = await fhFetch(`/stock/metric?symbol=${symbol}&metric=all`, apiKey);
+      const m = data?.metric || {};
+      result = [{
+        symbol,
+        payoutRatio:  (m['payoutRatioTTM'] || 0) / 100,
+        peRatio:      m['peTTM']     || 0,
+        roe:          m['roeTTM']    || 0,
+        debtToEquity: m['totalDebt/totalEquityAnnual'] || 0,
+        eps:          m['epsTTM']    || 0,
+        revenueGrowth:m['revenueGrowthTTMYoy'] || 0,
+        dividendYield:(m['dividendYieldIndicatedAnnual'] || 0) / 100,
+        dividendPerShare: m['dividendsPerShareAnnual'] || 0,
+      }];
+    }
+
+    // ── PEERS ────────────────────────────────────────────────
+    else if (endpoint === 'peers') {
+      const data = await fhFetch(`/stock/peers?symbol=${symbol}`, apiKey);
+      result = [{ peersList: Array.isArray(data) ? data.slice(0,6) : [] }];
+    }
+
+    else {
+      return { statusCode: 400, headers: CORS,
+        body: JSON.stringify({ error: `Unknown endpoint: ${endpoint}` }) };
     }
 
     const body = JSON.stringify(result);
@@ -179,7 +206,8 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers: { ...CORS, 'X-Cache': 'MISS' }, body };
 
   } catch(err) {
-    console.error(`Yahoo Finance error [${endpoint}]:`, err.message);
-    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) };
+    console.error(`Finnhub error [${endpoint}] [${symbol}]:`, err.message);
+    return { statusCode: 500, headers: CORS,
+      body: JSON.stringify({ error: err.message }) };
   }
 };
