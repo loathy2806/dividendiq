@@ -597,18 +597,17 @@ async function doRegister() {
 }
 
 function demoLogin() {
-  // Pre-populate demo portfolio so user sees a useful dashboard
   const demoHoldings = [
-    {ticker:'KO',  name:'Coca-Cola Co.',       shares:50, price:75.74, cost:68.00, dayChg:+0.74, yield:2.72, sector:'Defensiv', annDiv:2.06, dg5:4.1, payout:72, years:62, ar:true, hy:false, gr:true, re:false},
-    {ticker:'JNJ', name:'Johnson & Johnson',   shares:20, price:158.60,cost:148.00,dayChg:-0.52, yield:3.18, sector:'Healthcare',annDiv:5.04, dg5:6.2, payout:44, years:61, ar:true, hy:false, gr:true, re:false},
-    {ticker:'MO',  name:'Altria Group Inc.',   shares:80, price:47.25, cost:42.00, dayChg:-0.84, yield:8.51, sector:'Defensiv', annDiv:4.02, dg5:4.2, payout:78, years:54, ar:true, hy:true,  gr:false,re:false},
-    {ticker:'MSFT',name:'Microsoft Corp.',     shares:10, price:422.30,cost:380.00,dayChg:+0.66, yield:0.71, sector:'Technologie',annDiv:3.32,dg5:10.4,payout:24,years:21, ar:false,hy:false, gr:true, re:false},
-    {ticker:'MAIN',name:'Main Street Capital', shares:40, price:52.40, cost:44.80, dayChg:-0.38, yield:7.48, sector:'BDC',       annDiv:3.92, dg5:2.1, payout:85, years:12, ar:false,hy:true,  gr:false,re:true },
+    {ticker:'KO',  name:'Coca-Cola Co.',       shares:50, price:75.74, cost:68.00, dayChg:+0.74, yield:2.72, sector:'Defensiv',    annDiv:2.06, dg5:4.1,  payout:72, years:62, ar:true, hy:false,gr:true, re:false},
+    {ticker:'JNJ', name:'Johnson & Johnson',   shares:20, price:158.60,cost:148.00,dayChg:-0.52, yield:3.18, sector:'Healthcare',   annDiv:5.04, dg5:6.2,  payout:44, years:61, ar:true, hy:false,gr:true, re:false},
+    {ticker:'MO',  name:'Altria Group Inc.',   shares:80, price:47.25, cost:42.00, dayChg:-0.84, yield:8.51, sector:'Defensiv',    annDiv:4.02, dg5:4.2,  payout:78, years:54, ar:true, hy:true, gr:false,re:false},
+    {ticker:'MSFT',name:'Microsoft Corp.',     shares:10, price:422.30,cost:380.00,dayChg:+0.66, yield:0.71, sector:'Technologie', annDiv:3.32, dg5:10.4, payout:24, years:21, ar:false,hy:false,gr:true, re:false},
+    {ticker:'MAIN',name:'Main Street Capital', shares:40, price:52.40, cost:44.80, dayChg:-0.38, yield:7.48, sector:'BDC',         annDiv:3.92, dg5:2.1,  payout:85, years:12, ar:false,hy:true, gr:false,re:true },
   ];
   loginAs({ name: 'Demo User', email: 'demo@dividendiq.com', plan: 'free' }, demoHoldings);
 }
 
-function loginAs(user, preloadHoldings=null) {
+async function loginAs(user, preloadHoldings=null) {
   currentUser = user;
   DB.saveUser(user);
   if(preloadHoldings) {
