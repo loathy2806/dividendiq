@@ -1528,24 +1528,22 @@ function applyQuoteToHolding(h, q) {
   }
 }
 
-// Load live quotes for all holdings in ONE bulk call
+// Load live quotes for all holdings — single calls for FMP free plan compatibility
 async function loadLiveQuotes() {
   if(!HOLDINGS.length) return;
-  const tickers = HOLDINGS.map(h=>h.ticker).join(',');
   showToast('Kurse werden aktualisiert…');
-  const data = await fmpFetch('bulk-quote', {symbol: tickers});
-  if(Array.isArray(data)) {
-    data.forEach(q => {
-      const h = HOLDINGS.find(x=>x.ticker===q.symbol);
-      if(h) applyQuoteToHolding(h, q);
-    });
-    DB.save();
-    renderDashboard();
-    // refresh open tabs
-    if(activeTab==='diversification') renderDiversification();
-    if(activeTab==='dividends')       { Object.keys(inited).forEach(k=>{if(k==='dividends')delete inited[k];}); renderDividendsTab(); }
-    if(activeTab==='forecast')        updateForecast();
-  }
+  // Load all quotes in parallel (each is a single call — free plan compatible)
+  const results = await Promise.all(
+    HOLDINGS.map(h => fmpFetch('quote', {symbol: h.ticker}))
+  );
+  results.forEach((data, i) => {
+    const q = Array.isArray(data) ? data[0] : data;
+    if(q) applyQuoteToHolding(HOLDINGS[i], q);
+  });
+  DB.save();
+  renderDashboard();
+  if(activeTab==='diversification') renderDiversification();
+  if(activeTab==='forecast') updateForecast();
   hideToast();
 }
 
@@ -1557,33 +1555,40 @@ async function searchStocksLive(query) {
     wrap.innerHTML=`<div class="search-results"><div class="search-empty">Keine Ergebnisse für "${query}"</div></div>`;
     return;
   }
-  const top = data.slice(0,8);
+  const top = data.slice(0, 8);
 
-  // Fetch quotes for all found tickers in one bulk call
-  const tickers = top.map(s=>s.symbol).join(',');
-  const quotes  = await fmpFetch('bulk-quote',{symbol:tickers});
-  const qMap    = {};
-  if(Array.isArray(quotes)) quotes.forEach(q=>{ qMap[q.symbol]=q; });
-
+  // Render results immediately with search data (no price yet)
   wrap.innerHTML=`<div class="search-results">${top.map(s=>{
-    const q     = qMap[s.symbol];
-    const price = q?.price ? `$${fmt(q.price,2)}` : '—';
-    const yld   = q?.dividendYield ? fmt(q.dividendYield*100,2)+'% Yield' : '—';
-    const exch  = s.exchangeShortName || s.stockExchange || '';
-    return `<div class="search-item" onclick="selectStockLive('${s.symbol}')">
+    const local = STOCK_DB.find(x=>x.ticker===s.symbol);
+    const price = local ? `$${fmt(local.price,2)}` : '—';
+    const yld   = local ? (local.yield>0?fmt(local.yield,2)+'% Yield':'—') : '—';
+    return `<div class="search-item" id="si-${s.symbol}" onclick="selectStockLive('${s.symbol}')">
       <div class="si-left">
         <span class="si-ticker">${s.symbol}</span>
         <div>
           <div class="si-name">${s.name}</div>
-          <div style="font-size:10px;color:var(--text3)">${exch}</div>
+          <div style="font-size:10px;color:var(--text3)">${s.exchangeShortName||s.exchange||''}</div>
         </div>
       </div>
       <div class="si-right">
-        <div class="si-price">${price}</div>
-        <div class="si-yield">${yld}</div>
+        <div class="si-price" id="price-${s.symbol}">${price}</div>
+        <div class="si-yield" id="yield-${s.symbol}">${yld}</div>
       </div>
     </div>`;
   }).join('')}</div>`;
+
+  // Load price for first result only (free plan: single quote)
+  const firstSymbol = top[0]?.symbol;
+  if(firstSymbol) {
+    const q = await fmpFetch('quote', {symbol: firstSymbol});
+    const quote = Array.isArray(q) ? q[0] : q;
+    if(quote?.price) {
+      const el = document.getElementById(`price-${firstSymbol}`);
+      const ye = document.getElementById(`yield-${firstSymbol}`);
+      if(el) el.textContent = '$'+fmt(quote.price,2);
+      if(ye && quote.dividendYield) ye.textContent = fmt(quote.dividendYield>1?quote.dividendYield:quote.dividendYield*100,2)+'% Yield';
+    }
+  }
 }
 
 // Select a stock from live search results
