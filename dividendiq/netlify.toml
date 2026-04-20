@@ -1,0 +1,19 @@
+[build]
+  functions = "netlify/functions"
+  publish = "public"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Cache FMP responses on CDN edge — Free users get 15min cache, reduces API calls
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type"
+
+# Redirect all routes to index for SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
