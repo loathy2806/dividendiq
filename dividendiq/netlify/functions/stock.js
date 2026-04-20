@@ -65,24 +65,30 @@ exports.handler = async (event) => {
       const tickers = symbol.split(',').map(s => s.trim()).filter(Boolean);
       const results = await Promise.all(tickers.map(async t => {
         try {
-          const [q, p] = await Promise.all([
+          const [q, p, m] = await Promise.all([
             fhFetch(`/quote?symbol=${t}`, apiKey),
             fhFetch(`/stock/profile2?symbol=${t}`, apiKey),
+            fhFetch(`/stock/metric?symbol=${t}&metric=all`, apiKey),
           ]);
-          const divYield = (p.dividendYield || 0) / 100; // Finnhub gives % → convert to decimal
+          const mt = m?.metric || {};
+          // dividendYield from metrics — Finnhub gives it as % e.g. 2.72
+          const divYieldPct = mt['dividendYieldIndicatedAnnual'] || mt['currentDividendYieldTTM'] || 0;
+          const divYield = divYieldPct / 100; // convert to decimal e.g. 0.0272
+          const annDivPS = mt['dividendsPerShareAnnual'] || mt['dividendsPerShareTTM'] || 0;
           return {
             symbol:           t,
             name:             p.name || t,
-            price:            parseFloat((q.c || 0).toFixed(2)),   // c = current price
-            change:           parseFloat((q.d || 0).toFixed(2)),   // d = change
-            changePercentage: parseFloat((q.dp || 0).toFixed(4)),  // dp = change %
+            price:            parseFloat((q.c || 0).toFixed(2)),
+            change:           parseFloat((q.d || 0).toFixed(2)),
+            changePercentage: parseFloat((q.dp || 0).toFixed(4)),
             dividendYield:    divYield,
-            trailingDividend: (p.dividendYield || 0),
+            trailingDividend: annDivPS,
             marketCap:        p.marketCapitalization ? p.marketCapitalization * 1e6 : 0,
-            pe:               p.peNormalizedAnnual || 0,
-            yearHigh:         q['52WeekHigh'] || 0,
-            yearLow:          q['52WeekLow']  || 0,
+            pe:               mt['peTTM'] || mt['peNormalizedAnnual'] || 0,
+            yearHigh:         mt['52WeekHigh'] || q.h || 0,
+            yearLow:          mt['52WeekLow']  || q.l || 0,
             exchange:         p.exchange || '',
+            sector:           p.finnhubIndustry || '',
           };
         } catch(e) {
           return { symbol: t, error: e.message, price: 0 };
