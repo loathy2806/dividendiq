@@ -735,6 +735,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // ═══════════════════════════════════════════════════
 let selectedStock = null;
 let searchTimeout = null;
+let lastSearchResults = [];
 
 // Curated search database (used as fallback; real app uses FMP /search endpoint)
 const STOCK_DB = [
@@ -1477,9 +1478,9 @@ function showDetailTab(t,el){
 
 // ═══════════════════════════════════════════════════
 // FMP LIVE DATA LAYER
-// Netlify Function proxy: /.netlify/functions/fmp
+// Netlify Function proxy: /.netlify/functions/stock
 // ═══════════════════════════════════════════════════
-const FMP = '/.netlify/functions/fmp';
+const FMP = '/.netlify/functions/stock';
 const fmpCache = new Map();
 
 async function fmpFetch(endpoint, params={}) {
@@ -1556,12 +1557,12 @@ async function searchStocksLive(query) {
     return;
   }
   const top = data.slice(0, 8);
+  lastSearchResults = top;
 
-  // Render results immediately with search data (no price yet)
   wrap.innerHTML=`<div class="search-results">${top.map(s=>{
     const local = STOCK_DB.find(x=>x.ticker===s.symbol);
     const price = local ? `$${fmt(local.price,2)}` : '—';
-    const yld   = local ? (local.yield>0?fmt(local.yield,2)+'% Yield':'—') : '—';
+    const yld   = local && local.yield>0 ? fmt(local.yield,2)+'% Yield' : '—';
     return `<div class="search-item" id="si-${s.symbol}" onclick="selectStockLive('${s.symbol}')">
       <div class="si-left">
         <span class="si-ticker">${s.symbol}</span>
@@ -1576,99 +1577,81 @@ async function searchStocksLive(query) {
       </div>
     </div>`;
   }).join('')}</div>`;
-
-  // Load price for first result only (free plan: single quote)
-  const firstSymbol = top[0]?.symbol;
-  if(firstSymbol) {
-    const q = await fmpFetch('quote', {symbol: firstSymbol});
-    const quote = Array.isArray(q) ? q[0] : q;
-    if(quote?.price) {
-      const el = document.getElementById(`price-${firstSymbol}`);
-      const ye = document.getElementById(`yield-${firstSymbol}`);
-      if(el) el.textContent = '$'+fmt(quote.price,2);
-      if(ye && quote.dividendYield) ye.textContent = fmt(quote.dividendYield>1?quote.dividendYield:quote.dividendYield*100,2)+'% Yield';
-    }
-  }
 }
 
-// Select a stock from live search results
+// Select a stock — show local data INSTANTLY, FMP loads in background
 async function selectStockLive(ticker) {
-  document.getElementById('search-results-wrap').innerHTML=`<div class="loading-dots">Daten werden geladen…</div>`;
-
-  // Use single quote endpoint for more reliable data
-  const [quoteArr, divData, profileArr] = await Promise.all([
-    fmpFetch('quote', {symbol: ticker}),
-    fmpFetch('dividends', {symbol: ticker}),
-    fmpFetch('profile', {symbol: ticker}),
-  ]);
-
-  const q  = Array.isArray(quoteArr)   ? quoteArr[0]  : quoteArr;
-  const pr = Array.isArray(profileArr) ? profileArr[0]: profileArr;
-
-  // Debug: log what we got
-  console.log('Quote for', ticker, ':', q);
-
-  const fallback = STOCK_DB.find(s=>s.ticker===ticker) || {};
-
-  // Price — try multiple fields FMP might return
-  const price = q?.price || q?.lastPrice || q?.currentPrice || fallback.price || 0;
-
-  // Dividend yield — FMP stable returns as decimal e.g. 0.0286
-  let yieldPct = 0;
-  if(q?.dividendYield && q.dividendYield > 0) {
-    // If > 1 it's already in percent, if < 1 it's decimal
-    yieldPct = q.dividendYield > 1 ? q.dividendYield : q.dividendYield * 100;
-  } else if(fallback.yield) {
-    yieldPct = fallback.yield;
-  }
-
-  // Annual dividend per share from history
-  let annDivPS = 0;
-  if(Array.isArray(divData) && divData.length) {
-    const cutoff = new Date();
-    cutoff.setFullYear(cutoff.getFullYear() - 1);
-    const lastYear = divData.filter(d => new Date(d.date || d.paymentDate) >= cutoff);
-    annDivPS = lastYear.length
-      ? lastYear.reduce((a,d)=>a+(d.dividend||d.adjDividend||0),0)
-      : (divData[0]?.dividend||0) * (divData.length >= 10 ? 12 : 4);
-  }
-  if(!annDivPS && yieldPct > 0 && price > 0) {
-    annDivPS = price * (yieldPct / 100);
-  }
+  // 1. Show local data immediately (0ms delay)
+  const local = STOCK_DB.find(s=>s.ticker===ticker);
+  const searchResult = lastSearchResults?.find(s=>s.symbol===ticker);
 
   selectedStock = {
     ticker,
-    name:     pr?.companyName || q?.name || fallback.name || ticker,
-    price,
-    yield:    yieldPct,
-    sector:   pr?.sector || fallback.sector || 'Unbekannt',
-    annDivPS: parseFloat(annDivPS.toFixed(4)),
-    annDiv:   parseFloat(annDivPS.toFixed(4)),
-    dg5:      fallback.dg5   || 0,
-    payout:   fallback.payout|| 0,
-    years:    fallback.years || 0,
-    ar:       fallback.ar    || false,
-    hy:       yieldPct >= 5,
+    name:     searchResult?.name || local?.name || ticker,
+    price:    local?.price || 0,
+    yield:    local?.yield || 0,
+    sector:   local?.sector || searchResult?.exchangeShortName || 'Unbekannt',
+    annDivPS: local?.annDivPS || 0,
+    annDiv:   local?.annDivPS || 0,
+    dg5:      local?.dg5   || 0,
+    payout:   local?.payout|| 0,
+    years:    local?.years || 0,
+    ar:       local?.ar    || false,
+    hy:       (local?.yield||0) >= 5,
     gr:       false,
-    re:       (pr?.sector||'').toLowerCase().includes('real estate'),
+    re:       false,
   };
 
   document.getElementById('search-results-wrap').innerHTML = '';
   document.getElementById('stock-search-inp').value = `${ticker} — ${selectedStock.name}`;
   document.getElementById('stock-form-wrap').classList.remove('hidden');
+
+  const priceDisplay = selectedStock.price > 0
+    ? '$'+fmt(selectedStock.price,2)
+    : '<span style="color:var(--text3);font-size:12px">Wird geladen…</span>';
+
   document.getElementById('selected-stock-info').innerHTML = `
     <div>
       <div class="ssi-name">${ticker}</div>
       <div style="font-size:12px;color:var(--text2)">${selectedStock.name} · ${selectedStock.sector}</div>
     </div>
-    <div style="text-align:right">
-      <div class="ssi-price">${price > 0 ? '$'+fmt(price,2) : 'Kurs wird geladen…'}</div>
-      <div style="font-size:12px;color:var(--c1d)">${yieldPct > 0 ? fmt(yieldPct,2)+'% Yield' : 'Keine Dividende'}</div>
+    <div style="text-align:right" id="ssi-price-wrap">
+      <div class="ssi-price">${priceDisplay}</div>
+      <div style="font-size:12px;color:var(--c1d)">${selectedStock.yield>0?fmt(selectedStock.yield,2)+'% Yield':'Keine Dividende'}</div>
     </div>`;
-  document.getElementById('inp-cost').value = price > 0 ? price.toFixed(2) : '';
+
+  document.getElementById('inp-cost').value = selectedStock.price > 0 ? selectedStock.price.toFixed(2) : '';
   document.getElementById('inp-date').value = new Date().toISOString().slice(0,10);
   document.getElementById('add-stock-confirm-btn').disabled = false;
   document.getElementById('inp-shares').focus();
+
+  // 2. Load live data in background (non-blocking)
+  fmpFetch('quote', {symbol: ticker}).then(data => {
+    const q = Array.isArray(data) ? data[0] : data;
+    if(!q || !q.price) return;
+
+    const liveYield = q.dividendYield
+      ? (q.dividendYield > 1 ? q.dividendYield : q.dividendYield * 100)
+      : selectedStock.yield;
+
+    // Update selectedStock with live data
+    selectedStock.price  = q.price;
+    selectedStock.yield  = liveYield;
+    selectedStock.annDiv = q.price * (liveYield/100);
+    selectedStock.annDivPS = selectedStock.annDiv;
+
+    // Update UI
+    const wrap = document.getElementById('ssi-price-wrap');
+    if(wrap) wrap.innerHTML = `
+      <div class="ssi-price">$${fmt(q.price,2)}</div>
+      <div style="font-size:12px;color:var(--c1d)">${liveYield>0?fmt(liveYield,2)+'% Yield':'Keine Dividende'}</div>`;
+
+    // Update cost field if user hasn't typed yet
+    const costEl = document.getElementById('inp-cost');
+    if(costEl && (!costEl.value || parseFloat(costEl.value) === 0)) {
+      costEl.value = q.price.toFixed(2);
+    }
+  }).catch(() => {}); // silently fail — local data is still usable
 }
 
 // Override searchStocks to use live FMP, with instant local preview
