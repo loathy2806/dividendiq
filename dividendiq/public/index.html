@@ -1521,7 +1521,7 @@ function hideToast(){
 function applyQuoteToHolding(h, q) {
   if(!q) return;
   h.price     = q.price           ?? h.price;
-  h.dayChg    = q.changePercentage ?? q.changesPercentage ?? h.dayChg;
+  h.dayChg    = q.changePercentage ?? h.dayChg;
   // FMP stable: dividendYield is a decimal e.g. 0.0286 = 2.86%
   if(q.dividendYield != null && q.dividendYield > 0) {
     h.yield  = q.dividendYield * 100;
@@ -1711,7 +1711,7 @@ async function openDetailLive(ticker) {
   // Update price & change
   if(q) {
     document.getElementById('sd-price').textContent = '$'+fmt(q.price,2);
-    const chg = q.changePercentage ?? q.changesPercentage ?? 0;
+    const chg = q.changePercentage ?? 0;
     const chgEl = document.getElementById('sd-chg');
     chgEl.textContent = (chg>=0?'+':'')+fmt(chg,2)+'%  ($'+(chg>=0?'+':'')+fmt(q.change||0,2)+') heute';
     chgEl.className = 'sdh-price-chg '+(chg>=0?'green':'red');
