@@ -1,10 +1,9 @@
 [build]
   base      = "dividendiq"
-  functions = "netlify/functions"
   publish   = "public"
 
 [functions]
-  node_bundler = "esbuild"
+  directory = "netlify/functions"
 
 [[headers]]
   for = "/.netlify/functions/*"
