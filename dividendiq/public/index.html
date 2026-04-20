@@ -924,7 +924,7 @@ function selectStock(ticker) {
   document.getElementById('inp-shares').focus();
 }
 
-function confirmAddStock() {
+async function confirmAddStock() {
   if (!selectedStock) return;
   const shares = parseFloat(document.getElementById('inp-shares').value);
   const cost   = parseFloat(document.getElementById('inp-cost').value);
