@@ -168,13 +168,22 @@ exports.handler = async (event) => {
       const data  = await fhFetch(`/search?q=${encodeURIComponent(query)}`, apiKey);
       const items = data?.result || [];
       result = items
-        .filter(s => s.type === 'Common Stock' || s.type === 'EQS' || !s.type)
+        .filter(s => {
+          // Only show stocks without dot (US tickers) or explicitly US exchanges
+          const sym = s.symbol || '';
+          const type = s.type || '';
+          // Exclude foreign listings (contain dots like TROW.MX, TROW.VI)
+          if(sym.includes('.')) return false;
+          // Prefer stocks and ETFs
+          if(type && type !== 'Common Stock' && type !== 'EQS' && type !== 'ETF') return false;
+          return true;
+        })
         .slice(0, 8)
         .map(s => ({
           symbol:           s.symbol,
           name:             s.description || s.symbol,
-          exchange:         s.primaryExch || '',
-          exchangeShortName:s.primaryExch || '',
+          exchange:         s.primaryExch || 'NYSE/NASDAQ',
+          exchangeShortName:s.primaryExch || 'US',
           currency:         'USD',
         }));
     }
