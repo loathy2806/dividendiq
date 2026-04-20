@@ -384,11 +384,11 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
         <div class="sdh-metrics" id="sd-metrics"></div>
       </div>
       <div class="detail-tabs">
-        <button class="detail-tab active" onclick="showDetailTab('chart',this)">Kursverlauf</button>
+        <button class="detail-tab active" onclick="showDetailTab('chart',this)">Kursverlauf 🔒</button>
         <button class="detail-tab" onclick="showDetailTab('summary',this)">Summary</button>
         <button class="detail-tab" onclick="showDetailTab('dividends',this)">Dividenden</button>
-        <button class="detail-tab" onclick="showDetailTab('competition',this)">Competition</button>
-        <button class="detail-tab" onclick="showDetailTab('financials',this)">Kennzahlen</button>
+        <button class="detail-tab" onclick="showDetailTab('competition',this)">Competition 🔒</button>
+        <button class="detail-tab" onclick="showDetailTab('financials',this)">Kennzahlen 🔒</button>
       </div>
       <div id="dtab-chart">
         <div class="sc">
@@ -592,19 +592,36 @@ function doRegister() {
 }
 
 function demoLogin() {
-  loginAs({ name: 'Demo User', email: 'demo@dividendiq.com', plan: 'free' });
+  // Pre-populate demo portfolio so user sees a useful dashboard
+  const demoHoldings = [
+    {ticker:'KO',  name:'Coca-Cola Co.',       shares:50, price:75.74, cost:68.00, dayChg:+0.74, yield:2.72, sector:'Defensiv', annDiv:2.06, dg5:4.1, payout:72, years:62, ar:true, hy:false, gr:true, re:false},
+    {ticker:'JNJ', name:'Johnson & Johnson',   shares:20, price:158.60,cost:148.00,dayChg:-0.52, yield:3.18, sector:'Healthcare',annDiv:5.04, dg5:6.2, payout:44, years:61, ar:true, hy:false, gr:true, re:false},
+    {ticker:'MO',  name:'Altria Group Inc.',   shares:80, price:47.25, cost:42.00, dayChg:-0.84, yield:8.51, sector:'Defensiv', annDiv:4.02, dg5:4.2, payout:78, years:54, ar:true, hy:true,  gr:false,re:false},
+    {ticker:'MSFT',name:'Microsoft Corp.',     shares:10, price:422.30,cost:380.00,dayChg:+0.66, yield:0.71, sector:'Technologie',annDiv:3.32,dg5:10.4,payout:24,years:21, ar:false,hy:false, gr:true, re:false},
+    {ticker:'MAIN',name:'Main Street Capital', shares:40, price:52.40, cost:44.80, dayChg:-0.38, yield:7.48, sector:'BDC',       annDiv:3.92, dg5:2.1, payout:85, years:12, ar:false,hy:true,  gr:false,re:true },
+  ];
+  loginAs({ name: 'Demo User', email: 'demo@dividendiq.com', plan: 'free' }, demoHoldings);
 }
 
-function loginAs(user) {
+function loginAs(user, preloadHoldings=null) {
   currentUser = user;
   DB.saveUser(user);
-  DB.load();
+  if(preloadHoldings) {
+    HOLDINGS = preloadHoldings;
+    DB.save();
+  } else {
+    DB.load();
+  }
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app-shell').classList.add('visible');
   document.getElementById('user-avatar').textContent = user.name.charAt(0).toUpperCase();
-  document.getElementById('profile-name').value  = user.name;
-  document.getElementById('profile-email').value = user.email;
+  // Safely set profile fields (they exist in DOM at this point)
+  const pn = document.getElementById('profile-name');
+  const pe = document.getElementById('profile-email');
+  if(pn) pn.value = user.name;
+  if(pe) pe.value = user.email;
   renderDashboard();
+  updateFreemiumUI();
 }
 
 function doLogout() {
@@ -626,6 +643,83 @@ function saveProfile() {
   DB.saveUser(currentUser);
   document.getElementById('user-avatar').textContent = currentUser.name.charAt(0).toUpperCase();
   alert('Gespeichert ✓');
+}
+
+// ═══════════════════════════════════════════════════
+// FREEMIUM GATING
+// ═══════════════════════════════════════════════════
+const FREE_LIMITS = {
+  maxPositions:  10,
+  forecastYears: [5, 10],       // only these two allowed on free
+  researchCards: 6,
+  detailChart:   false,         // no price chart
+  detailDivHist: false,         // no dividend history
+  detailComp:    false,         // no competition tab
+  detailFin:     false,         // no financials tab
+  ads:           true,
+};
+
+function isPro() { return currentUser?.plan === 'pro'; }
+
+function gateCheck(feature) {
+  if(isPro()) return true;
+  return FREE_LIMITS[feature] === true || FREE_LIMITS[feature] === undefined;
+}
+
+function updateFreemiumUI() {
+  const pro = isPro();
+  // Banner
+  const ban = document.getElementById('freeban');
+  if(ban) ban.style.display = pro ? 'none' : 'flex';
+  // Update position counter
+  const cnt = document.getElementById('position-count');
+  if(cnt) {
+    cnt.textContent = HOLDINGS.length === 0 ? '' : pro
+      ? `· ${HOLDINGS.length} Aktien`
+      : `· ${HOLDINGS.length}/${FREE_LIMITS.maxPositions} Aktien (Free)`;
+  }
+  // Update detail tab lock icons
+  document.querySelectorAll('.detail-tab').forEach(btn => {
+    const text = btn.textContent;
+    if(pro) {
+      btn.textContent = text.replace(' 🔒','');
+    } else {
+      if(['Kursverlauf','Competition','Kennzahlen'].some(t=>text.includes(t)) && !text.includes('🔒')) {
+        btn.textContent = text + ' 🔒';
+      }
+    }
+  });
+  // Update forecast year buttons
+  document.querySelectorAll('#years-toggle .yr-btn').forEach(btn => {
+    const y = parseInt(btn.textContent);
+    if(pro) {
+      btn.textContent = btn.textContent.replace(' 🔒','');
+      btn.style.opacity = '1';
+    } else if(![5,10].includes(y)) {
+      if(!btn.textContent.includes('🔒')) btn.textContent += ' 🔒';
+      btn.style.opacity = '0.6';
+    }
+  });
+  // Ads — hide for pro
+  document.querySelectorAll('.ad-banner').forEach(el => {
+    el.style.display = pro ? 'none' : 'flex';
+  });
+}
+
+function requirePro(featureName) {
+  if(isPro()) return true;
+  const msg = {
+    'chart':    'Kurschart (1M/6M/2J/5J) ist ein Pro-Feature.',
+    'divhist':  'Vollständige Dividendenhistorie ist ein Pro-Feature.',
+    'comp':     'Competition-Analyse ist ein Pro-Feature.',
+    'fin':      'Finanzkennzahlen sind ein Pro-Feature.',
+    'forecast': 'Prognosen über 10 Jahre sind ein Pro-Feature.',
+    'research': 'Unbegrenzter Research-Zugang ist ein Pro-Feature.',
+  }[featureName] || 'Dieses Feature ist ein Pro-Feature.';
+  const sub = document.querySelector('#modal-upgrade .modal-sub');
+  if(sub) sub.textContent = '🔒 ' + msg + ' Upgrade jetzt für vollen Zugang.';
+  openModal('upgrade');
+  return false;
 }
 
 // Auto-login on page load
@@ -742,7 +836,7 @@ function confirmAddStock() {
     existing.cost    = (existing.shares * existing.cost + shares * cost) / totalShares;
     existing.shares  = totalShares;
   } else {
-    if (HOLDINGS.length >= 20 && currentUser?.plan !== 'pro') {
+    if (HOLDINGS.length >= (isPro() ? 9999 : FREE_LIMITS.maxPositions)) {
       closeModals();
       setTimeout(() => openModal('upgrade'), 300);
       return;
@@ -1063,9 +1157,9 @@ function renderForecastTab(){
       <div class="years-toggle" id="years-toggle">
         <button class="yr-btn" onclick="setForecastYears(5)">5 Jahre</button>
         <button class="yr-btn active" onclick="setForecastYears(10)">10 Jahre</button>
-        <button class="yr-btn" onclick="setForecastYears(15)">15 Jahre</button>
-        <button class="yr-btn" onclick="setForecastYears(20)">20 Jahre</button>
-        <button class="yr-btn" onclick="setForecastYears(25)">25 Jahre</button>
+        <button class="yr-btn" onclick="setForecastYears(15)">15 Jahre 🔒</button>
+        <button class="yr-btn" onclick="setForecastYears(20)">20 Jahre 🔒</button>
+        <button class="yr-btn" onclick="setForecastYears(25)">25 Jahre 🔒</button>
       </div>
     </div>
     <div class="sc">
@@ -1098,6 +1192,10 @@ function renderForecastTab(){
 }
 
 function setForecastYears(y){
+  if(!isPro() && !FREE_LIMITS.forecastYears.includes(y)) {
+    requirePro('forecast');
+    return;
+  }
   forecastYears=y;
   document.querySelectorAll('#years-toggle .yr-btn').forEach(b=>b.classList.toggle('active',b.textContent===y+' Jahre'));
   updateForecast();
@@ -1338,6 +1436,14 @@ function renderSimulatedDivHist(s){
 }
 
 function showDetailTab(t,el){
+  // Gate Pro-only tabs
+  const gated = {
+    'chart':       !isPro() ? 'chart'   : null,
+    'competition': !isPro() ? 'comp'    : null,
+    'financials':  !isPro() ? 'fin'     : null,
+  };
+  if(gated[t]) { requirePro(gated[t]); return; }
+
   ['chart','summary','dividends','competition','financials'].forEach(s=>document.getElementById('dtab-'+s)?.classList.toggle('hidden',s!==t));
   document.querySelectorAll('.detail-tab').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
