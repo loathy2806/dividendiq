@@ -1344,6 +1344,339 @@ function showDetailTab(t,el){
 }
 
 // ═══════════════════════════════════════════════════
+// FMP LIVE DATA LAYER
+// Netlify Function proxy: /.netlify/functions/fmp
+// ═══════════════════════════════════════════════════
+const FMP = '/.netlify/functions/fmp';
+const fmpCache = new Map();
+
+async function fmpFetch(endpoint, params={}) {
+  const qs = new URLSearchParams({endpoint, ...params}).toString();
+  if(fmpCache.has(qs)) return fmpCache.get(qs);
+  try {
+    const res = await fetch(`${FMP}?${qs}`);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    fmpCache.set(qs, data);
+    return data;
+  } catch(e) {
+    console.warn(`FMP [${endpoint}] failed:`, e.message);
+    return null;
+  }
+}
+
+// Toast loader
+function showToast(msg){
+  let el=document.getElementById('fmp-toast');
+  if(!el){
+    el=document.createElement('div');
+    el.id='fmp-toast';
+    el.style.cssText='position:fixed;bottom:22px;right:22px;background:#16191f;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;display:flex;align-items:center;gap:9px;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:opacity .3s';
+    el.innerHTML='<span style="width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span><span id="fmp-toast-msg"></span>';
+    document.body.appendChild(el);
+    if(!document.getElementById('spin-style')){const s=document.createElement('style');s.id='spin-style';s.textContent='@keyframes spin{to{transform:rotate(360deg)}}';document.head.appendChild(s);}
+  }
+  document.getElementById('fmp-toast-msg').textContent=msg;
+  el.style.opacity='1';el.style.display='flex';
+}
+function hideToast(){
+  const el=document.getElementById('fmp-toast');
+  if(el){el.style.opacity='0';setTimeout(()=>el.style.display='none',300);}
+}
+
+// Apply a FMP quote object to a holding
+function applyQuoteToHolding(h, q) {
+  if(!q) return;
+  h.price     = q.price           ?? h.price;
+  h.dayChg    = q.changePercentage ?? q.changesPercentage ?? h.dayChg;
+  // FMP stable: dividendYield is a decimal e.g. 0.0286 = 2.86%
+  if(q.dividendYield != null && q.dividendYield > 0) {
+    h.yield  = q.dividendYield * 100;
+    h.annDiv = parseFloat((q.price * q.dividendYield).toFixed(4));
+  }
+}
+
+// Load live quotes for all holdings in ONE bulk call
+async function loadLiveQuotes() {
+  if(!HOLDINGS.length) return;
+  const tickers = HOLDINGS.map(h=>h.ticker).join(',');
+  showToast('Kurse werden aktualisiert…');
+  const data = await fmpFetch('bulk-quote', {symbol: tickers});
+  if(Array.isArray(data)) {
+    data.forEach(q => {
+      const h = HOLDINGS.find(x=>x.ticker===q.symbol);
+      if(h) applyQuoteToHolding(h, q);
+    });
+    DB.save();
+    renderDashboard();
+    // refresh open tabs
+    if(activeTab==='diversification') renderDiversification();
+    if(activeTab==='dividends')       { Object.keys(inited).forEach(k=>{if(k==='dividends')delete inited[k];}); renderDividendsTab(); }
+    if(activeTab==='forecast')        updateForecast();
+  }
+  hideToast();
+}
+
+// Live search via FMP — replaces local STOCK_DB search
+async function searchStocksLive(query) {
+  showToast('Suche läuft…');
+  const data = await fmpFetch('search', {query});
+  hideToast();
+  const wrap = document.getElementById('search-results-wrap');
+  if(!data || !data.length) {
+    wrap.innerHTML=`<div class="search-results"><div class="search-empty">Keine Ergebnisse für "${query}"</div></div>`;
+    return;
+  }
+  // Fetch quotes for found tickers to get prices
+  const tickers = data.slice(0,8).map(s=>s.symbol).join(',');
+  const quotes  = await fmpFetch('bulk-quote',{symbol:tickers});
+  const qMap    = {};
+  if(Array.isArray(quotes)) quotes.forEach(q=>{ qMap[q.symbol]=q; });
+
+  wrap.innerHTML=`<div class="search-results">${data.slice(0,8).map(s=>{
+    const q   = qMap[s.symbol]||{};
+    const price = q.price ? `$${fmt(q.price,2)}` : '—';
+    const yld   = q.dividendYield ? fmt(q.dividendYield*100,2)+'% Yield' : '—';
+    return `<div class="search-item" onclick="selectStockLive('${s.symbol}')">
+      <div class="si-left">
+        <span class="si-ticker">${s.symbol}</span>
+        <div><div class="si-name">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.exchangeShortName||s.stockExchange||''}</div></div>
+      </div>
+      <div class="si-right">
+        <div class="si-price">${price}</div>
+        <div class="si-yield">${yld}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// Select a stock from live search results
+async function selectStockLive(ticker) {
+  document.getElementById('search-results-wrap').innerHTML=`<div class="loading-dots">Daten werden geladen…</div>`;
+  // get quote + dividends in parallel
+  const [quoteArr, divData, profileArr] = await Promise.all([
+    fmpFetch('bulk-quote',{symbol:ticker}),
+    fmpFetch('dividends',{symbol:ticker}),
+    fmpFetch('profile',{symbol:ticker}),
+  ]);
+  const q  = Array.isArray(quoteArr)  ? quoteArr[0]  : null;
+  const pr = Array.isArray(profileArr)? profileArr[0]: null;
+
+  // Find in STOCK_DB as fallback for static fields
+  const fallback = STOCK_DB.find(s=>s.ticker===ticker)||{};
+
+  // Compute annDivPS from dividend history
+  let annDivPS = 0;
+  if(divData && Array.isArray(divData) && divData.length) {
+    // Sum last 4 quarterly (or 12 monthly) payments
+    const recent = divData.slice(0,12);
+    const totalRecent = recent.reduce((a,d)=>a+(d.dividend||d.adjDividend||0),0);
+    // Annualize: if 4 entries look quarterly, multiply by 4; use sum of last year instead
+    annDivPS = totalRecent; // last 12 months worth
+    if(recent.length < 4) annDivPS = (recent[0]?.dividend||0)*4;
+  } else if(q?.dividendYield && q?.price) {
+    annDivPS = q.price * q.dividendYield;
+  }
+
+  selectedStock = {
+    ticker,
+    name:      pr?.companyName || q?.name || fallback.name || ticker,
+    price:     q?.price         || fallback.price || 0,
+    yield:     q?.dividendYield ? q.dividendYield*100 : (fallback.yield||0),
+    sector:    pr?.sector       || fallback.sector || 'Unbekannt',
+    annDivPS:  parseFloat(annDivPS.toFixed(4)),
+    dg5:       fallback.dg5  || 0,
+    payout:    fallback.payout || 0,
+    years:     fallback.years  || 0,
+    ar:        fallback.ar  || false,
+    hy:        (q?.dividendYield||0)*100 >= 5,
+    gr:        false,
+    re:        (pr?.sector||'').toLowerCase().includes('real estate'),
+  };
+
+  document.getElementById('search-results-wrap').innerHTML='';
+  document.getElementById('stock-search-inp').value=`${ticker} — ${selectedStock.name}`;
+  document.getElementById('stock-form-wrap').classList.remove('hidden');
+  document.getElementById('selected-stock-info').innerHTML=`
+    <div><div class="ssi-name">${ticker}</div><div style="font-size:12px;color:var(--text2)">${selectedStock.name} · ${selectedStock.sector}</div></div>
+    <div style="text-align:right"><div class="ssi-price">$${fmt(selectedStock.price,2)}</div><div style="font-size:12px;color:var(--c1d)">${selectedStock.yield>0?fmt(selectedStock.yield,2)+'% Yield':'Keine Dividende'}</div></div>`;
+  document.getElementById('inp-cost').value = selectedStock.price.toFixed(2);
+  document.getElementById('inp-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('add-stock-confirm-btn').disabled=false;
+  document.getElementById('inp-shares').focus();
+}
+
+// Override searchStocks to use live FMP first, fallback to local
+const _searchStocksLocal = searchStocks;
+function searchStocks(query) {
+  clearTimeout(searchTimeout);
+  const wrap = document.getElementById('search-results-wrap');
+  if(!query||query.length<1){wrap.innerHTML='';return;}
+  // Check local DB first for instant results
+  const q = query.toLowerCase().trim();
+  const local = STOCK_DB.filter(s=>s.ticker.toLowerCase()===q||s.ticker.toLowerCase().startsWith(q)||s.name.toLowerCase().includes(q)).slice(0,4);
+  if(local.length){
+    wrap.innerHTML=`<div class="search-results">${local.map(s=>`
+      <div class="search-item" onclick="selectStockLive('${s.ticker}')">
+        <div class="si-left"><span class="si-ticker">${s.ticker}</span><div><div class="si-name">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.sector}</div></div></div>
+        <div class="si-right"><div class="si-price">$${fmt(s.price,2)}</div><div class="si-yield">${s.yield>0?fmt(s.yield,2)+'% Yield':'—'}</div></div>
+      </div>`).join('')}
+      <div style="padding:8px 14px;font-size:11px;color:var(--text3);border-top:1px solid #f3f4f6;">Weitere Ergebnisse werden geladen…</div>
+    </div>`;
+  }
+  // Then live search
+  searchTimeout = setTimeout(()=>searchStocksLive(query), 400);
+}
+
+// Override openDetail to load live FMP data
+const _openDetailStatic = openDetail;
+async function openDetailLive(ticker) {
+  _openDetailStatic(ticker); // show static data instantly
+  showToast(`${ticker} wird geladen…`);
+  const [quoteArr, profileArr, divData, metricsArr] = await Promise.all([
+    fmpFetch('bulk-quote', {symbol:ticker}),
+    fmpFetch('profile',    {symbol:ticker}),
+    fmpFetch('dividends',  {symbol:ticker}),
+    fmpFetch('metrics',    {symbol:ticker}),
+  ]);
+  hideToast();
+
+  const q  = Array.isArray(quoteArr)   ? quoteArr[0]   : null;
+  const pr = Array.isArray(profileArr) ? profileArr[0] : null;
+  const mt = Array.isArray(metricsArr) ? metricsArr[0] : null;
+
+  // Update price & change
+  if(q) {
+    document.getElementById('sd-price').textContent = '$'+fmt(q.price,2);
+    const chg = q.changePercentage ?? q.changesPercentage ?? 0;
+    const chgEl = document.getElementById('sd-chg');
+    chgEl.textContent = (chg>=0?'+':'')+fmt(chg,2)+'%  ($'+(chg>=0?'+':'')+fmt(q.change||0,2)+') heute';
+    chgEl.className = 'sdh-price-chg '+(chg>=0?'green':'red');
+  }
+
+  // Update name & sector
+  if(pr) {
+    document.getElementById('sd-fullname').textContent = pr.companyName||ticker;
+    document.getElementById('sd-sector').textContent   = [pr.sector,pr.industry].filter(Boolean).join(' · ');
+  }
+
+  // Update metrics bar
+  const fwdYield = q?.dividendYield ? q.dividendYield*100 : 0;
+  const annDivPS = q?.dividendYield && q?.price ? q.price*q.dividendYield : 0;
+  document.getElementById('sd-metrics').innerHTML=[
+    {l:'Forward Yield',  v:fwdYield>0?fmt(fwdYield,2)+'%':'—',          s:annDivPS>0?'$'+fmt(annDivPS,2)+' / Aktie p.a.':''},
+    {l:'52W Hoch',       v:q?.yearHigh ?'$'+fmt(q.yearHigh,2):'—',       s:''},
+    {l:'52W Tief',       v:q?.yearLow  ?'$'+fmt(q.yearLow,2):'—',        s:''},
+    {l:'KGV (TTM)',      v:q?.pe       ?fmt(q.pe,1)+'x':'—',              s:''},
+    {l:'Marktkapital.',  v:q?.marketCap?'$'+fmt(q.marketCap/1e9,1)+'B':'—',s:''},
+    {l:'Payout Ratio',  v:mt?.payoutRatio?fmt(mt.payoutRatio*100,1)+'%':'—',s:''},
+  ].map(x=>`<div class="sdh-metric"><div class="sdh-m-label">${x.l}</div><div class="sdh-m-val">${x.v}</div>${x.s?`<div class="sdh-m-sub">${x.s}</div>`:''}</div>`).join('');
+
+  // Summary with real bio
+  if(pr?.description) {
+    document.getElementById('sd-summary').innerHTML=`
+      <div class="sc-title">Über ${ticker} — ${pr.companyName}</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">${pr.description}</p>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+        ${[
+          {l:'Sektor',   v:pr.sector||'—'},
+          {l:'Industrie',v:pr.industry||'—'},
+          {l:'Land',     v:pr.country||'—'},
+          {l:'Börse',    v:pr.exchangeShortName||pr.exchange||'—'},
+        ].map(x=>`<div class="sdh-metric"><div class="sdh-m-label">${x.l}</div><div class="sdh-m-val" style="font-size:13px">${x.v}</div></div>`).join('')}
+      </div>`;
+  }
+
+  // Real dividend history
+  if(Array.isArray(divData) && divData.length) {
+    const rows = divData.slice(0,16).map(d=>`
+      <div class="div-hist-row">
+        <span style="font-weight:700">${d.date||d.paymentDate||'—'}</span>
+        <span>$${fmt(d.dividend||d.adjDividend||0,4)} / Aktie</span>
+        <span style="color:var(--text3);font-size:11px">Ex: ${d.recordDate||d.date||'—'}</span>
+      </div>`).join('');
+    document.getElementById('sd-divs').innerHTML=`
+      <div class="sc-title">Dividendenhistorie (live)</div>
+      <div style="margin-bottom:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <div class="sdh-metric"><div class="sdh-m-label">Forward Yield</div><div class="sdh-m-val green">${fwdYield>0?fmt(fwdYield,2)+'%':'—'}</div></div>
+        <div class="sdh-metric"><div class="sdh-m-label">Letzte Zahlung</div><div class="sdh-m-val">$${fmt(divData[0]?.dividend||0,4)}</div></div>
+        <div class="sdh-metric"><div class="sdh-m-label">Zahlungen/Jahr</div><div class="sdh-m-val">${divData.length>=12?'Monatlich':divData.length>=4?'Quartal':'Jährl.'}</div></div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Letzte Zahlungen</div>
+      ${rows}`;
+    // Real div history chart
+    renderRealDivHist(divData);
+  }
+
+  // Real price chart
+  showToast('Kurschart wird geladen…');
+  const today = new Date().toISOString().slice(0,10);
+  const from2Y = new Date(Date.now()-730*86400000).toISOString().slice(0,10);
+  const hist = await fmpFetch('history',{symbol:ticker,from:from2Y,to:today});
+  hideToast();
+  if(hist && hist.length) renderRealPriceChart(hist, q?.price||0);
+}
+
+function renderRealPriceChart(hist, currentPrice) {
+  if(pcInst) pcInst.destroy();
+  const sorted = [...hist].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const labels = sorted.map(d=>{const dt=new Date(d.date);return dt.toLocaleDateString('de-AT',{month:'short',day:'numeric'});});
+  const data   = sorted.map(d=>d.close||d.adjClose||d.price||0);
+  if(currentPrice && data.length) data[data.length-1]=currentPrice;
+  const color  = data[data.length-1] >= data[0] ? '#00c48c' : '#ef4444';
+  pcInst=new Chart(document.getElementById('priceChart').getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[{data,borderColor:color,backgroundColor:color.replace(')',', .08)').replace('#00c48c','rgba(0,196,140').replace('#ef4444','rgba(239,68,68'),borderWidth:2,pointRadius:0,fill:true,tension:0.2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>' $'+fmt(c.raw,2)}}},scales:{x:{ticks:{maxTicksLimit:8}},y:{ticks:{callback:v=>'$'+fmt(v,0)}}}}
+  });
+}
+
+function renderRealDivHist(divData) {
+  if(dhInst) dhInst.destroy();
+  // Group by year, sum payments
+  const byYear={};
+  divData.forEach(d=>{
+    const y=new Date(d.date||d.paymentDate||'2025').getFullYear();
+    byYear[y]=(byYear[y]||0)+(d.dividend||d.adjDividend||0);
+  });
+  const years=Object.keys(byYear).sort().slice(-5);
+  const data=years.map(y=>parseFloat(byYear[y].toFixed(4)));
+  const ctx=document.getElementById('divHistChart');
+  if(!ctx)return;
+  dhInst=new Chart(ctx.getContext('2d'),{
+    type:'bar',
+    data:{labels:years.map((y,i)=>y+'\n$'+fmt(data[i],2)),datasets:[{data,backgroundColor:'#00c48c',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' $'+fmt(c.raw,4)+' / Aktie'}}},scales:{y:{beginAtZero:false,ticks:{callback:v=>'$'+fmt(v,2)}},x:{ticks:{autoSkip:false,font:{size:10}}}}}
+  });
+}
+
+// Override range button to use real FMP data
+async function setRange(r,el){
+  document.querySelectorAll('.cr-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const ticker=document.getElementById('sd-ticker').textContent;
+  const days={1:30,'1M':30,'6M':180,'2Y':730,'5Y':1825}[r]||730;
+  const from=new Date(Date.now()-days*86400000).toISOString().slice(0,10);
+  const to=new Date().toISOString().slice(0,10);
+  showToast('Chart wird geladen…');
+  const hist=await fmpFetch('history',{symbol:ticker,from,to});
+  hideToast();
+  const q=HOLDINGS.find(h=>h.ticker===ticker)||STOCK_DB.find(s=>s.ticker===ticker);
+  if(hist&&hist.length) renderRealPriceChart(hist, q?.price||0);
+  else renderSimulatedPriceChart(q?.price||100,r);
+}
+
+// Set openDetail globally to use live version
+window.openDetail = openDetailLive;
+
+// Load live quotes after login (non-blocking)
+const _loginAsOrig = loginAs;
+function loginAs(user){
+  _loginAsOrig(user);
+  if(HOLDINGS.length) setTimeout(()=>loadLiveQuotes(), 800);
+}
+
+// ═══════════════════════════════════════════════════
 // MODALS & TAB MANAGER
 // ═══════════════════════════════════════════════════
 function openModal(id){
