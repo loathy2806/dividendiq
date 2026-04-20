@@ -1589,56 +1589,80 @@ async function searchStocksLive(query) {
 // Select a stock from live search results
 async function selectStockLive(ticker) {
   document.getElementById('search-results-wrap').innerHTML=`<div class="loading-dots">Daten werden geladen…</div>`;
-  // get quote + dividends in parallel
+
+  // Use single quote endpoint for more reliable data
   const [quoteArr, divData, profileArr] = await Promise.all([
-    fmpFetch('bulk-quote',{symbol:ticker}),
-    fmpFetch('dividends',{symbol:ticker}),
-    fmpFetch('profile',{symbol:ticker}),
+    fmpFetch('quote', {symbol: ticker}),
+    fmpFetch('dividends', {symbol: ticker}),
+    fmpFetch('profile', {symbol: ticker}),
   ]);
-  const q  = Array.isArray(quoteArr)  ? quoteArr[0]  : null;
-  const pr = Array.isArray(profileArr)? profileArr[0]: null;
 
-  // Find in STOCK_DB as fallback for static fields
-  const fallback = STOCK_DB.find(s=>s.ticker===ticker)||{};
+  const q  = Array.isArray(quoteArr)   ? quoteArr[0]  : quoteArr;
+  const pr = Array.isArray(profileArr) ? profileArr[0]: profileArr;
 
-  // Compute annDivPS from dividend history
+  // Debug: log what we got
+  console.log('Quote for', ticker, ':', q);
+
+  const fallback = STOCK_DB.find(s=>s.ticker===ticker) || {};
+
+  // Price — try multiple fields FMP might return
+  const price = q?.price || q?.lastPrice || q?.currentPrice || fallback.price || 0;
+
+  // Dividend yield — FMP stable returns as decimal e.g. 0.0286
+  let yieldPct = 0;
+  if(q?.dividendYield && q.dividendYield > 0) {
+    // If > 1 it's already in percent, if < 1 it's decimal
+    yieldPct = q.dividendYield > 1 ? q.dividendYield : q.dividendYield * 100;
+  } else if(fallback.yield) {
+    yieldPct = fallback.yield;
+  }
+
+  // Annual dividend per share from history
   let annDivPS = 0;
-  if(divData && Array.isArray(divData) && divData.length) {
-    // Sum last 4 quarterly (or 12 monthly) payments
-    const recent = divData.slice(0,12);
-    const totalRecent = recent.reduce((a,d)=>a+(d.dividend||d.adjDividend||0),0);
-    // Annualize: if 4 entries look quarterly, multiply by 4; use sum of last year instead
-    annDivPS = totalRecent; // last 12 months worth
-    if(recent.length < 4) annDivPS = (recent[0]?.dividend||0)*4;
-  } else if(q?.dividendYield && q?.price) {
-    annDivPS = q.price * q.dividendYield;
+  if(Array.isArray(divData) && divData.length) {
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - 1);
+    const lastYear = divData.filter(d => new Date(d.date || d.paymentDate) >= cutoff);
+    annDivPS = lastYear.length
+      ? lastYear.reduce((a,d)=>a+(d.dividend||d.adjDividend||0),0)
+      : (divData[0]?.dividend||0) * (divData.length >= 10 ? 12 : 4);
+  }
+  if(!annDivPS && yieldPct > 0 && price > 0) {
+    annDivPS = price * (yieldPct / 100);
   }
 
   selectedStock = {
     ticker,
-    name:      pr?.companyName || q?.name || fallback.name || ticker,
-    price:     q?.price         || fallback.price || 0,
-    yield:     q?.dividendYield ? q.dividendYield*100 : (fallback.yield||0),
-    sector:    pr?.sector       || fallback.sector || 'Unbekannt',
-    annDivPS:  parseFloat(annDivPS.toFixed(4)),
-    dg5:       fallback.dg5  || 0,
-    payout:    fallback.payout || 0,
-    years:     fallback.years  || 0,
-    ar:        fallback.ar  || false,
-    hy:        (q?.dividendYield||0)*100 >= 5,
-    gr:        false,
-    re:        (pr?.sector||'').toLowerCase().includes('real estate'),
+    name:     pr?.companyName || q?.name || fallback.name || ticker,
+    price,
+    yield:    yieldPct,
+    sector:   pr?.sector || fallback.sector || 'Unbekannt',
+    annDivPS: parseFloat(annDivPS.toFixed(4)),
+    annDiv:   parseFloat(annDivPS.toFixed(4)),
+    dg5:      fallback.dg5   || 0,
+    payout:   fallback.payout|| 0,
+    years:    fallback.years || 0,
+    ar:       fallback.ar    || false,
+    hy:       yieldPct >= 5,
+    gr:       false,
+    re:       (pr?.sector||'').toLowerCase().includes('real estate'),
   };
 
-  document.getElementById('search-results-wrap').innerHTML='';
-  document.getElementById('stock-search-inp').value=`${ticker} — ${selectedStock.name}`;
+  document.getElementById('search-results-wrap').innerHTML = '';
+  document.getElementById('stock-search-inp').value = `${ticker} — ${selectedStock.name}`;
   document.getElementById('stock-form-wrap').classList.remove('hidden');
-  document.getElementById('selected-stock-info').innerHTML=`
-    <div><div class="ssi-name">${ticker}</div><div style="font-size:12px;color:var(--text2)">${selectedStock.name} · ${selectedStock.sector}</div></div>
-    <div style="text-align:right"><div class="ssi-price">$${fmt(selectedStock.price,2)}</div><div style="font-size:12px;color:var(--c1d)">${selectedStock.yield>0?fmt(selectedStock.yield,2)+'% Yield':'Keine Dividende'}</div></div>`;
-  document.getElementById('inp-cost').value = selectedStock.price.toFixed(2);
+  document.getElementById('selected-stock-info').innerHTML = `
+    <div>
+      <div class="ssi-name">${ticker}</div>
+      <div style="font-size:12px;color:var(--text2)">${selectedStock.name} · ${selectedStock.sector}</div>
+    </div>
+    <div style="text-align:right">
+      <div class="ssi-price">${price > 0 ? '$'+fmt(price,2) : 'Kurs wird geladen…'}</div>
+      <div style="font-size:12px;color:var(--c1d)">${yieldPct > 0 ? fmt(yieldPct,2)+'% Yield' : 'Keine Dividende'}</div>
+    </div>`;
+  document.getElementById('inp-cost').value = price > 0 ? price.toFixed(2) : '';
   document.getElementById('inp-date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('add-stock-confirm-btn').disabled=false;
+  document.getElementById('add-stock-confirm-btn').disabled = false;
   document.getElementById('inp-shares').focus();
 }
 
