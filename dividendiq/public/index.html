@@ -500,19 +500,30 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
 <div class="modal-overlay" id="modal-upgrade" onclick="if(event.target===this)closeModals()">
   <div class="modal">
     <div class="modal-title">✦ DividendIQ Pro</div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">Investiere smarter — alle Features ohne Einschränkungen.</p>
+    <p class="modal-sub" style="font-size:13px;color:var(--text2);margin-bottom:16px;">Investiere smarter — alle Features ohne Einschränkungen.</p>
     <div style="display:flex;flex-direction:column;gap:9px;font-size:13px;margin-bottom:6px;">
-      <span>✅ Unbegrenzte Positionen</span><span>✅ KI-Aktienanalyse</span>
-      <span>✅ Keine Werbung</span><span>✅ Erweiterte Prognosen & Alerts</span>
-      <span>✅ CSV / PDF Export</span><span>✅ Prioritäts-Support</span>
+      <span>✅ Unbegrenzte Positionen</span>
+      <span>✅ Vollständiger Research-Zugang</span>
+      <span>✅ Kurscharts & Dividendenhistorie</span>
+      <span>✅ Erweiterte Prognosen (bis 25 Jahre)</span>
+      <span>✅ Keine Werbung</span>
+      <span>✅ Prioritäts-Support</span>
     </div>
-    <div style="background:#f0fdf9;border:1px solid #6ee7b7;border-radius:10px;padding:14px;margin:16px 0;text-align:center;">
-      <div style="font-size:26px;font-weight:900;color:var(--c1d);">€9,99 <span style="font-size:14px;font-weight:500;color:var(--text2)">/ Monat</span></div>
-      <div style="font-size:12px;color:var(--text2);margin-top:3px;">oder €89,99 / Jahr — 2 Monate gratis 🎉</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0;">
+      <div style="background:#f0fdf9;border:2px solid #6ee7b7;border-radius:10px;padding:14px;text-align:center;cursor:pointer;" onclick="startCheckout('monthly')">
+        <div style="font-size:20px;font-weight:900;color:var(--c1d);">€9,99</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px;">/ Monat</div>
+        <div style="margin-top:8px;padding:6px;background:var(--c1d);color:#fff;border-radius:6px;font-size:12px;font-weight:700;" id="btn-monthly">Monatlich wählen</div>
+      </div>
+      <div style="background:#f5f3ff;border:2px solid #c4b5fd;border-radius:10px;padding:14px;text-align:center;cursor:pointer;position:relative;" onclick="startCheckout('yearly')">
+        <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#7c3aed;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">SPAR 25%</div>
+        <div style="font-size:20px;font-weight:900;color:#7c3aed;">€89,99</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px;">/ Jahr</div>
+        <div style="margin-top:8px;padding:6px;background:#7c3aed;color:#fff;border-radius:6px;font-size:12px;font-weight:700;" id="btn-yearly">Jährlich wählen</div>
+      </div>
     </div>
     <div class="modal-btns">
       <button class="cancel-btn" onclick="closeModals()">Später</button>
-      <button class="save-btn" style="flex:2;padding:11px;font-size:14px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);" onclick="alert('→ Stripe Checkout');closeModals()">Jetzt upgraden →</button>
     </div>
   </div>
 </div>
@@ -1965,13 +1976,71 @@ function showTab(t){
 }
 
 // ═══════════════════════════════════════════════════
-// INIT — runs after ALL functions are defined
+// STRIPE CHECKOUT
 // ═══════════════════════════════════════════════════
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51TNo4oERGfPaX'; // wird aus ENV nicht direkt gebraucht — Checkout via Server
+
+async function startCheckout(plan) {
+  if (!currentUser) { openModal('upgrade'); return; }
+
+  const btnId = plan === 'monthly' ? 'btn-monthly' : 'btn-yearly';
+  const btn = document.getElementById(btnId);
+  if(btn) { btn.textContent = 'Wird geladen…'; }
+
+  try {
+    const res = await fetch('/.netlify/functions/stripe-webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create-checkout',
+        priceId: plan === 'monthly'
+          ? '__STRIPE_PRICE_MONTHLY__'
+          : '__STRIPE_PRICE_YEARLY__',
+        email:   currentUser.email,
+        userId:  currentUser.id || '',
+        successUrl: window.location.origin + '?upgraded=true',
+        cancelUrl:  window.location.origin,
+      }),
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert('Fehler beim Checkout: ' + (data.error || 'Unbekannt'));
+      if(btn) btn.textContent = plan === 'monthly' ? 'Monatlich wählen' : 'Jährlich wählen';
+    }
+  } catch(e) {
+    alert('Netzwerkfehler: ' + e.message);
+    if(btn) btn.textContent = plan === 'monthly' ? 'Monatlich wählen' : 'Jährlich wählen';
+  }
+}
+
+// Handle successful upgrade redirect
+async function checkUpgradeRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('upgraded') === 'true') {
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+    // Update user plan locally
+    if (currentUser) {
+      currentUser.plan = 'pro';
+      DB.saveUser(currentUser);
+      updateFreemiumUI();
+      // Update in Supabase
+      if (authToken) await authFetch('update_profile', { name: currentUser.name, plan: 'pro' });
+      // Show success
+      setTimeout(() => {
+        alert('🎉 Willkommen bei DividendIQ Pro! Alle Features sind jetzt freigeschaltet.');
+      }, 500);
+    }
+  }
+}
 (async function init() {
   loadTokens();
   const saved = DB.loadUser();
   if (saved && authToken) {
     await loginAs(saved);
+    await checkUpgradeRedirect();
   } else if (saved && sessionStorage.getItem('diq_refresh')) {
     const res = await authFetch('refresh', {
       refresh_token: sessionStorage.getItem('diq_refresh')
@@ -1979,6 +2048,7 @@ function showTab(t){
     if (res.token) {
       saveTokens(res.token, res.refresh_token);
       await loginAs(saved);
+      await checkUpgradeRedirect();
     } else {
       clearTokens();
       localStorage.removeItem('diq_user');
