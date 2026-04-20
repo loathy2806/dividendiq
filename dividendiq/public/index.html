@@ -1559,24 +1559,44 @@ async function searchStocksLive(query) {
   const top = data.slice(0, 8);
   lastSearchResults = top;
 
+  // Render immediately with "—" prices
   wrap.innerHTML=`<div class="search-results">${top.map(s=>{
     const local = STOCK_DB.find(x=>x.ticker===s.symbol);
-    const price = local ? `$${fmt(local.price,2)}` : '—';
-    const yld   = local && local.yield>0 ? fmt(local.yield,2)+'% Yield' : '—';
+    const price = local ? `$${fmt(local.price,2)}` : '<span style="color:var(--text3);font-size:11px">lädt…</span>';
+    const yld   = local && local.yield>0 ? fmt(local.yield,2)+'% Yield' : '';
     return `<div class="search-item" id="si-${s.symbol}" onclick="selectStockLive('${s.symbol}')">
       <div class="si-left">
         <span class="si-ticker">${s.symbol}</span>
         <div>
           <div class="si-name">${s.name}</div>
-          <div style="font-size:10px;color:var(--text3)">${s.exchangeShortName||s.exchange||''}</div>
+          <div style="font-size:10px;color:var(--text3)">${s.exchangeShortName||s.exchange||'US'}</div>
         </div>
       </div>
       <div class="si-right">
         <div class="si-price" id="price-${s.symbol}">${price}</div>
-        <div class="si-yield" id="yield-${s.symbol}">${yld}</div>
+        <div class="si-yield" id="yield-${s.symbol}" style="font-size:11px;color:var(--c1d)">${yld}</div>
       </div>
     </div>`;
   }).join('')}</div>`;
+
+  // Load prices for all results in parallel (background, non-blocking)
+  top.forEach(async s => {
+    if(STOCK_DB.find(x=>x.ticker===s.symbol)) return; // already have local price
+    try {
+      const q = await fmpFetch('quote', {symbol: s.symbol});
+      const quote = Array.isArray(q) ? q[0] : q;
+      if(!quote?.price) return;
+      const priceEl = document.getElementById(`price-${s.symbol}`);
+      const yieldEl = document.getElementById(`yield-${s.symbol}`);
+      if(priceEl) priceEl.textContent = '$'+fmt(quote.price,2);
+      if(yieldEl && quote.dividendYield > 0) {
+        const yPct = quote.dividendYield > 1 ? quote.dividendYield : quote.dividendYield*100;
+        yieldEl.textContent = fmt(yPct,2)+'% Yield';
+      } else if(yieldEl) {
+        yieldEl.textContent = '';
+      }
+    } catch(e) {}
+  });
 }
 
 // Select a stock — show local data INSTANTLY, FMP loads in background
