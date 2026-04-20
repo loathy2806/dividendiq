@@ -772,7 +772,31 @@ const STOCK_DB = [
   {ticker:'VZ',name:'Verizon Communications',price:42.80,yield:6.28,sector:'Sensitiv',annDivPS:2.66,dg5:1.8,payout:56,years:17,ar:false,hy:true,gr:false,re:false},
   {ticker:'PM',name:'Philip Morris Intl.',price:164.20,yield:3.98,sector:'Defensiv',annDivPS:6.52,dg5:3.1,payout:88,years:16,ar:false,hy:false,gr:false,re:false},
   {ticker:'WMT',name:'Walmart Inc.',price:94.60,yield:0.92,sector:'Defensiv',annDivPS:0.88,dg5:5.2,payout:34,years:51,ar:true,hy:false,gr:true,re:false},
-  {ticker:'AMGN',name:'Amgen Inc.',price:294.80,yield:3.56,sector:'Healthcare',annDivPS:9.52,dg5:12.4,payout:48,years:12,ar:false,hy:false,gr:true,re:false},
+  {ticker:'UVV', name:'Universal Corporation',  price:54.20, yield:6.28,sector:'Defensiv',  annDivPS:3.40,dg5:1.2,payout:65,years:52,ar:true, hy:true, gr:false,re:false},
+  {ticker:'MMP', name:'Magellan Midstream',      price:67.80, yield:7.82,sector:'Energie',    annDivPS:5.30,dg5:2.1,payout:82,years:20,ar:false,hy:true, gr:false,re:false},
+  {ticker:'ENB', name:'Enbridge Inc.',           price:38.40, yield:6.44,sector:'Energie',    annDivPS:2.47,dg5:3.2,payout:68,years:28,ar:false,hy:true, gr:false,re:false},
+  {ticker:'D',   name:'Dominion Energy',         price:18.90, yield:5.82,sector:'Versorger',  annDivPS:1.10,dg5:2.1,payout:74,years:20,ar:false,hy:true, gr:false,re:false},
+  {ticker:'SO',  name:'Southern Company',        price:88.60, yield:3.28,sector:'Versorger',  annDivPS:2.80,dg5:3.4,payout:72,years:22,ar:false,hy:false,gr:false,re:false},
+  {ticker:'DUK', name:'Duke Energy',             price:117.40,yield:3.66,sector:'Versorger',  annDivPS:4.10,dg5:3.2,payout:75,years:18,ar:false,hy:false,gr:false,re:false},
+  {ticker:'KMB', name:'Kimberly-Clark',          price:126.80,yield:3.78,sector:'Defensiv',   annDivPS:4.80,dg5:4.1,payout:62,years:51,ar:true, hy:false,gr:false,re:false},
+  {ticker:'CL',  name:'Colgate-Palmolive',       price:92.40, yield:2.34,sector:'Defensiv',   annDivPS:2.16,dg5:4.2,payout:58,years:61,ar:true, hy:false,gr:true, re:false},
+  {ticker:'GPC', name:'Genuine Parts Company',   price:118.60,yield:3.24,sector:'Zyklisch',   annDivPS:3.80,dg5:5.8,payout:52,years:68,ar:true, hy:false,gr:true, re:false},
+  {ticker:'NUE', name:'Nucor Corporation',       price:142.80,yield:1.48,sector:'Industrie',  annDivPS:2.12,dg5:5.2,payout:22,years:50,ar:true, hy:false,gr:true, re:false},
+  {ticker:'EMR', name:'Emerson Electric',        price:106.40,yield:2.08,sector:'Industrie',  annDivPS:2.08,dg5:1.2,payout:48,years:47,ar:true, hy:false,gr:false,re:false},
+  {ticker:'ITW', name:'Illinois Tool Works',     price:248.60,yield:2.28,sector:'Industrie',  annDivPS:5.68,dg5:8.4,payout:55,years:49,ar:true, hy:false,gr:true, re:false},
+  {ticker:'MDT', name:'Medtronic',               price:86.40, yield:3.42,sector:'Healthcare', annDivPS:2.96,dg5:5.2,payout:48,years:46,ar:true, hy:false,gr:true, re:false},
+  {ticker:'ABT', name:'Abbott Laboratories',     price:128.60,yield:1.88,sector:'Healthcare', annDivPS:2.42,dg5:8.4,payout:42,years:52,ar:true, hy:false,gr:true, re:false},
+  {ticker:'BDX', name:'Becton Dickinson',        price:196.80,yield:1.98,sector:'Healthcare', annDivPS:3.92,dg5:4.2,payout:38,years:52,ar:true, hy:false,gr:true, re:false},
+  {ticker:'STAG',name:'STAG Industrial',         price:38.20, yield:4.12,sector:'REIT',       annDivPS:1.48,dg5:1.2,payout:76,years:12,ar:false,hy:false,gr:false,re:true },
+  {ticker:'NNN', name:'NNN REIT',                price:44.80, yield:5.42,sector:'REIT',       annDivPS:2.28,dg5:2.8,payout:72,years:34,ar:true, hy:true, gr:false,re:true },
+  {ticker:'ADC', name:'Agree Realty',            price:72.40, yield:4.28,sector:'REIT',       annDivPS:3.00,dg5:5.2,payout:74,years:12,ar:false,hy:false,gr:true, re:true },
+  {ticker:'IIPR',name:'Innovative Ind. Prop.',   price:68.40, yield:8.42,sector:'REIT',       annDivPS:7.24,dg5:8.4,payout:82,years:6, ar:false,hy:true, gr:false,re:true },
+  {ticker:'GAIN',name:'Gladstone Investment',    price:14.20, yield:6.82,sector:'BDC',        annDivPS:0.96,dg5:1.2,payout:88,years:8, ar:false,hy:true, gr:false,re:true },
+  {ticker:'GBDC',name:'Golub Capital BDC',       price:15.40, yield:9.28,sector:'BDC',        annDivPS:1.44,dg5:0.8,payout:92,years:6, ar:false,hy:true, gr:false,re:true },
+  {ticker:'MMM', name:'3M Company',              price:142.80,yield:2.28,sector:'Industrie',  annDivPS:3.16,dg5:0.0,payout:56,years:65,ar:true, hy:false,gr:false,re:false},
+  {ticker:'TGT', name:'Target Corporation',      price:98.40, yield:4.28,sector:'Defensiv',   annDivPS:4.40,dg5:12.4,payout:48,years:52,ar:true,hy:false, gr:true, re:false},
+  {ticker:'AFL', name:'Aflac Incorporated',      price:118.60,yield:2.08,sector:'Finanzen',   annDivPS:2.00,dg5:14.2,payout:28,years:41,ar:true, hy:false,gr:true, re:false},
+  {ticker:'ADP', name:'Automatic Data Process.', price:298.40,yield:2.08,sector:'Technologie',annDivPS:5.60,dg5:12.4,payout:62,years:48,ar:true, hy:false,gr:true, re:false},
 ];
 
 function searchStocks(query) {
@@ -1527,28 +1551,32 @@ async function loadLiveQuotes() {
 
 // Live search via FMP — replaces local STOCK_DB search
 async function searchStocksLive(query) {
-  showToast('Suche läuft…');
   const data = await fmpFetch('search', {query});
-  hideToast();
   const wrap = document.getElementById('search-results-wrap');
   if(!data || !data.length) {
     wrap.innerHTML=`<div class="search-results"><div class="search-empty">Keine Ergebnisse für "${query}"</div></div>`;
     return;
   }
-  // Fetch quotes for found tickers to get prices
-  const tickers = data.slice(0,8).map(s=>s.symbol).join(',');
+  const top = data.slice(0,8);
+
+  // Fetch quotes for all found tickers in one bulk call
+  const tickers = top.map(s=>s.symbol).join(',');
   const quotes  = await fmpFetch('bulk-quote',{symbol:tickers});
   const qMap    = {};
   if(Array.isArray(quotes)) quotes.forEach(q=>{ qMap[q.symbol]=q; });
 
-  wrap.innerHTML=`<div class="search-results">${data.slice(0,8).map(s=>{
-    const q   = qMap[s.symbol]||{};
-    const price = q.price ? `$${fmt(q.price,2)}` : '—';
-    const yld   = q.dividendYield ? fmt(q.dividendYield*100,2)+'% Yield' : '—';
+  wrap.innerHTML=`<div class="search-results">${top.map(s=>{
+    const q     = qMap[s.symbol];
+    const price = q?.price ? `$${fmt(q.price,2)}` : '—';
+    const yld   = q?.dividendYield ? fmt(q.dividendYield*100,2)+'% Yield' : '—';
+    const exch  = s.exchangeShortName || s.stockExchange || '';
     return `<div class="search-item" onclick="selectStockLive('${s.symbol}')">
       <div class="si-left">
         <span class="si-ticker">${s.symbol}</span>
-        <div><div class="si-name">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.exchangeShortName||s.stockExchange||''}</div></div>
+        <div>
+          <div class="si-name">${s.name}</div>
+          <div style="font-size:10px;color:var(--text3)">${exch}</div>
+        </div>
       </div>
       <div class="si-right">
         <div class="si-price">${price}</div>
@@ -1614,26 +1642,41 @@ async function selectStockLive(ticker) {
   document.getElementById('inp-shares').focus();
 }
 
-// Override searchStocks to use live FMP first, fallback to local
+// Override searchStocks to use live FMP, with instant local preview
 const _searchStocksLocal = searchStocks;
 function searchStocks(query) {
   clearTimeout(searchTimeout);
   const wrap = document.getElementById('search-results-wrap');
-  if(!query||query.length<1){wrap.innerHTML='';return;}
-  // Check local DB first for instant results
+  if(!query || query.length < 1) { wrap.innerHTML = ''; return; }
+
   const q = query.toLowerCase().trim();
-  const local = STOCK_DB.filter(s=>s.ticker.toLowerCase()===q||s.ticker.toLowerCase().startsWith(q)||s.name.toLowerCase().includes(q)).slice(0,4);
-  if(local.length){
-    wrap.innerHTML=`<div class="search-results">${local.map(s=>`
-      <div class="search-item" onclick="selectStockLive('${s.ticker}')">
-        <div class="si-left"><span class="si-ticker">${s.ticker}</span><div><div class="si-name">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.sector}</div></div></div>
-        <div class="si-right"><div class="si-price">$${fmt(s.price,2)}</div><div class="si-yield">${s.yield>0?fmt(s.yield,2)+'% Yield':'—'}</div></div>
-      </div>`).join('')}
-      <div style="padding:8px 14px;font-size:11px;color:var(--text3);border-top:1px solid #f3f4f6;">Weitere Ergebnisse werden geladen…</div>
+  // Show instant local results as preview
+  const local = STOCK_DB.filter(s =>
+    s.ticker.toLowerCase() === q ||
+    s.ticker.toLowerCase().startsWith(q) ||
+    s.name.toLowerCase().includes(q)
+  ).slice(0, 4);
+
+  if(local.length) {
+    wrap.innerHTML = `<div class="search-results">
+      ${local.map(s => `
+        <div class="search-item" onclick="selectStockLive('${s.ticker}')">
+          <div class="si-left"><span class="si-ticker">${s.ticker}</span>
+            <div><div class="si-name">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.sector}</div></div>
+          </div>
+          <div class="si-right">
+            <div class="si-price">$${fmt(s.price,2)}</div>
+            <div class="si-yield">${s.yield>0?fmt(s.yield,2)+'% Yield':'—'}</div>
+          </div>
+        </div>`).join('')}
+      <div style="padding:8px 14px;font-size:11px;color:var(--text3);border-top:1px solid #f3f4f6;">🔍 Suche alle Aktien via FMP…</div>
     </div>`;
+  } else {
+    wrap.innerHTML = `<div class="search-results"><div class="loading-dots">🔍 Suche "${query}" in allen Aktien…</div></div>`;
   }
-  // Then live search
-  searchTimeout = setTimeout(()=>searchStocksLive(query), 400);
+
+  // Always query FMP for complete results
+  searchTimeout = setTimeout(() => searchStocksLive(query), 350);
 }
 
 // Override openDetail to load live FMP data
