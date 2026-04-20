@@ -622,6 +622,8 @@ function loginAs(user, preloadHoldings=null) {
   if(pe) pe.value = user.email;
   renderDashboard();
   updateFreemiumUI();
+  // Load live quotes non-blocking
+  setTimeout(() => { if(HOLDINGS.length) loadLiveQuotes(); }, 800);
 }
 
 function doLogout() {
@@ -1774,13 +1776,6 @@ async function setRange(r,el){
 
 // Set openDetail globally to use live version
 window.openDetail = openDetailLive;
-
-// Load live quotes after login (non-blocking)
-const _loginAsOrig = loginAs;
-function loginAs(user){
-  _loginAsOrig(user);
-  if(HOLDINGS.length) setTimeout(()=>loadLiveQuotes(), 800);
-}
 
 // ═══════════════════════════════════════════════════
 // MODALS & TAB MANAGER
