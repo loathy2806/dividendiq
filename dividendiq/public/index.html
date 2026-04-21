@@ -1981,7 +1981,15 @@ function showTab(t){
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51TNo4oERGfPaX'; // wird aus ENV nicht direkt gebraucht — Checkout via Server
 
 async function startCheckout(plan) {
-  if (!currentUser) { openModal('upgrade'); return; }
+  if (!currentUser || currentUser.email === 'demo@dividendiq.com') {
+    closeModals();
+    // Show auth screen with register tab
+    document.getElementById('app-shell').classList.remove('visible');
+    document.getElementById('auth-screen').style.display = 'flex';
+    switchAuthTab('register', document.querySelector('.auth-tab:last-child'));
+    alert('Bitte erstelle zuerst ein kostenloses Konto um Pro zu kaufen.');
+    return;
+  }
 
   const btnId = plan === 'monthly' ? 'btn-monthly' : 'btn-yearly';
   const btn = document.getElementById(btnId);
