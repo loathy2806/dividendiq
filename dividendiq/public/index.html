@@ -268,12 +268,16 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
     <!-- LOGIN -->
     <div id="form-login">
       <div class="form-group"><label class="form-label">E-Mail</label><input class="form-input" type="email" id="login-email" placeholder="deine@email.com" autocomplete="email"></div>
-      <div class="form-group" style="margin-bottom:18px;"><label class="form-label">Passwort</label><input class="form-input" type="password" id="login-pw" placeholder="••••••••" autocomplete="current-password"></div>
+      <div class="form-group"><label class="form-label">Passwort</label><input class="form-input" type="password" id="login-pw" placeholder="••••••••" autocomplete="current-password"></div>
+      <div style="text-align:right;margin-bottom:14px;margin-top:-8px;">
+        <a href="#" style="font-size:12px;color:var(--c1d);font-weight:600;" onclick="showForgotPassword(event)">Passwort vergessen?</a>
+      </div>
       <button class="auth-btn" onclick="doLogin()">Anmelden</button>
       <div class="auth-divider">— oder —</div>
       <button class="auth-btn" style="background:#fff;color:var(--text);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;gap:8px;" onclick="demoLogin()">
         <span>🎯</span> Demo ansehen (ohne Account)
       </button>
+      <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:10px;">Demo-Daten werden nicht gespeichert — <a href="#" style="color:var(--c1d)" onclick="switchAuthTab('register',document.querySelector('.auth-tab:last-child'));return false;">Jetzt registrieren</a></div>
     </div>
 
     <!-- REGISTER -->
@@ -282,6 +286,16 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
       <div class="form-group"><label class="form-label">E-Mail</label><input class="form-input" type="email" id="reg-email" placeholder="deine@email.com"></div>
       <div class="form-group" style="margin-bottom:18px;"><label class="form-label">Passwort</label><input class="form-input" type="password" id="reg-pw" placeholder="Min. 8 Zeichen"></div>
       <button class="auth-btn" onclick="doRegister()">Konto erstellen</button>
+    </div>
+
+    <!-- FORGOT PASSWORD -->
+    <div id="form-forgot" class="hidden">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">Gib deine E-Mail ein — wir senden dir einen Reset-Link.</div>
+      <div class="form-group"><label class="form-label">E-Mail</label><input class="form-input" type="email" id="forgot-email" placeholder="deine@email.com"></div>
+      <button class="auth-btn" onclick="doForgotPassword()">Reset-Link senden</button>
+      <div style="text-align:center;margin-top:12px;">
+        <a href="#" style="font-size:12px;color:var(--c1d);" onclick="showLoginForm(event)">← Zurück zum Login</a>
+      </div>
     </div>
 
     <div class="auth-footer">Durch die Registrierung stimmst du unseren <a href="#" style="color:var(--c1d)">AGB</a> zu.</div>
@@ -308,7 +322,7 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
   <div class="content">
 
     <div class="freemium-banner" id="freeban">
-      <div style="font-size:13px;font-weight:500;">🎯 <strong>Kostenlos-Plan:</strong> Max. 20 Positionen · Unbegrenzte Positionen, KI-Analyse & mehr mit <strong>DividendIQ Pro</strong>.</div>
+      <div style="font-size:13px;font-weight:500;">🎯 <strong>Kostenlos-Plan:</strong> Max. 10 Positionen · Unbegrenzte Positionen, voller Research & mehr mit <strong>DividendIQ Pro</strong>.</div>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
         <button class="fb-btn" onclick="openModal('upgrade')">Jetzt upgraden</button>
         <span style="font-size:16px;cursor:pointer;opacity:.7" onclick="this.closest('.freemium-banner').style.display='none'">✕</span>
@@ -384,8 +398,8 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
         <div class="sdh-metrics" id="sd-metrics"></div>
       </div>
       <div class="detail-tabs">
-        <button class="detail-tab active" onclick="showDetailTab('chart',this)">Kursverlauf 🔒</button>
-        <button class="detail-tab" onclick="showDetailTab('summary',this)">Summary</button>
+        <button class="detail-tab" onclick="showDetailTab('chart',this)">Kursverlauf 🔒</button>
+        <button class="detail-tab active" onclick="showDetailTab('summary',this)">Summary</button>
         <button class="detail-tab" onclick="showDetailTab('dividends',this)">Dividenden</button>
         <button class="detail-tab" onclick="showDetailTab('competition',this)">Competition 🔒</button>
         <button class="detail-tab" onclick="showDetailTab('financials',this)">Kennzahlen 🔒</button>
@@ -429,10 +443,25 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
         </div>
         <div class="pc">
           <div class="pc-title">Persönliche Daten</div>
-          <div class="form-row-p"><label class="form-label-p">Name</label><input type="text" id="profile-name"></div>
-          <div class="form-row-p"><label class="form-label-p">E-Mail</label><input type="email" id="profile-email"></div>
-          <div class="form-row-p"><label class="form-label-p">Währung</label><select><option>USD ($)</option><option>EUR (€)</option></select></div>
-          <button class="save-btn" onclick="saveProfile()">Speichern</button>
+          <div class="form-row-p"><label class="form-label-p" data-i18n="profile_name">Name</label><input type="text" id="profile-name"></div>
+          <div class="form-row-p"><label class="form-label-p" data-i18n="profile_email">E-Mail</label><input type="email" id="profile-email"></div>
+          <div class="form-row-p">
+            <label class="form-label-p" data-i18n="profile_language">Sprache / Language</label>
+            <select id="language-select" onchange="setLanguage(this.value)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:14px;background:#f9fafb;">
+              <option value="de">🇩🇪 Deutsch</option>
+              <option value="en">🇬🇧 English</option>
+              <option value="es">🇪🇸 Español</option>
+              <option value="fr">🇫🇷 Français</option>
+            </select>
+          </div>
+          <div class="form-row-p"><label class="form-label-p" data-i18n="profile_currency">Währung</label>
+            <select id="currency-select" onchange="setCurrency(this.value)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:14px;background:#f9fafb;">
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+            </select>
+          </div>
+          <button class="save-btn" onclick="saveProfile()" data-i18n="save">Speichern</button>
         </div>
         <div class="pc">
           <div class="pc-title" style="color:var(--danger)">Gefahrenzone</div>
@@ -575,6 +604,46 @@ function showAuthError(msg) {
   const el = document.getElementById('auth-error');
   el.textContent = msg;
   el.classList.add('show');
+}
+
+function showForgotPassword(e) {
+  e.preventDefault();
+  document.getElementById('form-login').classList.add('hidden');
+  document.getElementById('form-register').classList.add('hidden');
+  document.getElementById('form-forgot').classList.remove('hidden');
+  document.getElementById('auth-error').classList.remove('show');
+}
+
+function showLoginForm(e) {
+  e.preventDefault();
+  document.getElementById('form-forgot').classList.add('hidden');
+  document.getElementById('form-login').classList.remove('hidden');
+  document.getElementById('auth-error').classList.remove('show');
+}
+
+async function doForgotPassword() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) { showAuthError('Bitte E-Mail eingeben.'); return; }
+
+  const btn = document.querySelector('#form-forgot .auth-btn');
+  btn.textContent = 'Wird gesendet…'; btn.disabled = true;
+
+  const res = await authFetch('forgot_password', { email });
+
+  btn.textContent = 'Reset-Link senden'; btn.disabled = false;
+
+  if (res.error) {
+    showAuthError(res.error);
+  } else {
+    document.getElementById('auth-error').classList.remove('show');
+    document.getElementById('form-forgot').innerHTML = `
+      <div style="text-align:center;padding:20px 0;">
+        <div style="font-size:40px;margin-bottom:12px;">📧</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;">E-Mail gesendet!</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:20px;">Prüfe dein Postfach und klicke auf den Reset-Link.</div>
+        <a href="#" style="font-size:13px;color:var(--c1d);font-weight:600;" onclick="showLoginForm(event)">← Zurück zum Login</a>
+      </div>`;
+  }
 }
 
 async function doLogin() {
@@ -1022,10 +1091,9 @@ function removeHolding(ticker) {
 }
 
 // ═══════════════════════════════════════════════════
-// UTILS
 // ═══════════════════════════════════════════════════
-function fmt(n,d=2){return n.toLocaleString('de-AT',{minimumFractionDigits:d,maximumFractionDigits:d});}
-function fU(n){return '$'+fmt(n,0);}
+// UTILS — fmt/fU defined in i18n section below
+// ═══════════════════════════════════════════════════
 
 function calcPortfolio(){
   let total=0,cost=0,annDiv=0;
@@ -1062,11 +1130,15 @@ function renderDashboard(){
   // Holdings table or empty state
   const wrap = document.getElementById('holdings-wrap');
   if (count === 0) {
+    const isDemo = currentUser?.email === 'demo@dividendiq.com';
     wrap.innerHTML = `<div class="empty-state">
       <div class="empty-icon">📈</div>
-      <div class="empty-title">Noch keine Aktien im Portfolio</div>
-      <div class="empty-sub">Füge deine erste Dividendenaktie hinzu und beobachte wie dein passives Einkommen wächst.</div>
-      <button class="add-btn" onclick="openModal('addstock')">+ Erste Aktie hinzufügen</button>
+      <div class="empty-title">${t('no_stocks')}</div>
+      <div class="empty-sub">${t('no_stocks_sub')}</div>
+      <button class="add-btn" onclick="openModal('addstock')">${t('first_stock')}</button>
+      ${isDemo ? `<div style="margin-top:16px;padding:12px 16px;background:#fff3cd;border-radius:8px;font-size:12px;color:#856404;max-width:360px;margin-left:auto;margin-right:auto;">
+        💡 <strong>${t('demo_hint')}</strong> <a href="#" style="color:#7c3aed;font-weight:700;" onclick="doLogout()">${t('register_now')}</a>
+      </div>` : ''}
     </div>`;
     return;
   }
@@ -1529,7 +1601,12 @@ function openDetail(ticker) {
   showTab('stock-detail');
   renderSimulatedPriceChart(s.price);
   renderSimulatedDivHist(s);
-  showDetailTab('chart', document.querySelector('.detail-tab'));
+  // Default to summary for free users, chart for pro
+  if(isPro()) {
+    showDetailTab('chart', document.querySelector('.detail-tab'));
+  } else {
+    showDetailTab('summary', document.querySelectorAll('.detail-tab')[1]);
+  }
 }
 
 function goBack(){showTab(prevTab);}
@@ -2075,7 +2152,193 @@ async function checkUpgradeRedirect() {
     }
   }
 }
+// ═══════════════════════════════════════════════════
+// i18n — INTERNATIONALIZATION
+// ═══════════════════════════════════════════════════
+let currentLang = localStorage.getItem('diq_lang') || 'de';
+let currentCurrency = localStorage.getItem('diq_currency') || 'USD';
+
+const TRANSLATIONS = {
+  de: {
+    dashboard:'Dashboard', diversification:'Diversifikation',
+    dividends:'Dividenden', forecast:'Zukunftswert', research:'Research',
+    total_portfolio:'Gesamtportfolio', portfolio_yield:'Portfolio Yield',
+    yield_on_cost:'Yield on Cost', annual_income:'Jährl. Einkommen',
+    positions:'Positionen', add_stock:'+ Aktie hinzufügen',
+    no_stocks:'Noch keine Aktien im Portfolio',
+    no_stocks_sub:'Füge deine erste Dividendenaktie hinzu und beobachte wie dein passives Einkommen wächst.',
+    first_stock:'+ Erste Aktie hinzufügen',
+    ticker:'Ticker', shares:'Stück', market_value:'Marktwert',
+    day_change:'Tag Δ', avg_cost:'Ø Kosten', gain_loss:'Gewinn/Verlust',
+    login:'Anmelden', register:'Registrieren', logout:'Abmelden',
+    email:'E-Mail', password:'Passwort', name:'Name',
+    create_account:'Konto erstellen', forgot_password:'Passwort vergessen?',
+    demo:'Demo ansehen (ohne Account)',
+    profile_name:'Name', profile_email:'E-Mail',
+    profile_language:'Sprache / Language', profile_currency:'Währung',
+    save:'Speichern', my_plan:'Mein Plan',
+    danger_zone:'Gefahrenzone', delete_account:'Konto löschen',
+    upgrade:'✦ Pro upgraden', cancel:'Abbrechen', add:'Hinzufügen',
+    loading:'Wird geladen…', no_dividend:'Keine Dividende',
+    on_market_value:'auf Marktwert', on_cost:'auf Einstiegspreis',
+    free_plan:'Kostenlos-Plan', pro_plan:'Pro-Plan',
+    free_limit:'Max. 10 Positionen · Werbeanzeigen · Basis-Features',
+    pro_features:'Unbegrenzte Positionen · Alle Features · Keine Werbung',
+    demo_hint:'Demo-Daten werden nicht gespeichert.',
+    register_now:'Jetzt registrieren',
+  },
+  en: {
+    dashboard:'Dashboard', diversification:'Diversification',
+    dividends:'Dividends', forecast:'Future Value', research:'Research',
+    total_portfolio:'Total Portfolio', portfolio_yield:'Portfolio Yield',
+    yield_on_cost:'Yield on Cost', annual_income:'Annual Income',
+    positions:'Positions', add_stock:'+ Add Stock',
+    no_stocks:'No stocks in portfolio yet',
+    no_stocks_sub:'Add your first dividend stock and watch your passive income grow.',
+    first_stock:'+ Add First Stock',
+    ticker:'Ticker', shares:'Shares', market_value:'Market Value',
+    day_change:'Day Δ', avg_cost:'Avg Cost', gain_loss:'Gain/Loss',
+    login:'Sign In', register:'Register', logout:'Sign Out',
+    email:'Email', password:'Password', name:'Name',
+    create_account:'Create Account', forgot_password:'Forgot password?',
+    demo:'View Demo (no account)',
+    profile_name:'Name', profile_email:'Email',
+    profile_language:'Language', profile_currency:'Currency',
+    save:'Save', my_plan:'My Plan',
+    danger_zone:'Danger Zone', delete_account:'Delete Account',
+    upgrade:'✦ Upgrade to Pro', cancel:'Cancel', add:'Add',
+    loading:'Loading…', no_dividend:'No Dividend',
+    on_market_value:'on market value', on_cost:'on cost basis',
+    free_plan:'Free Plan', pro_plan:'Pro Plan',
+    free_limit:'Max. 10 positions · Ads · Basic features',
+    pro_features:'Unlimited positions · All features · No ads',
+    demo_hint:'Demo data is not saved.',
+    register_now:'Register now',
+  },
+  es: {
+    dashboard:'Panel', diversification:'Diversificación',
+    dividends:'Dividendos', forecast:'Valor Futuro', research:'Investigación',
+    total_portfolio:'Portafolio Total', portfolio_yield:'Rendimiento',
+    yield_on_cost:'Rendimiento/Costo', annual_income:'Ingreso Anual',
+    positions:'Posiciones', add_stock:'+ Agregar Acción',
+    no_stocks:'Aún no hay acciones en el portafolio',
+    no_stocks_sub:'Agrega tu primera acción de dividendos y observa crecer tus ingresos pasivos.',
+    first_stock:'+ Primera Acción',
+    ticker:'Ticker', shares:'Acciones', market_value:'Valor de Mercado',
+    day_change:'Día Δ', avg_cost:'Costo Prom.', gain_loss:'Ganancia/Pérdida',
+    login:'Iniciar Sesión', register:'Registrarse', logout:'Cerrar Sesión',
+    email:'Correo', password:'Contraseña', name:'Nombre',
+    create_account:'Crear Cuenta', forgot_password:'¿Olvidaste tu contraseña?',
+    demo:'Ver Demo (sin cuenta)',
+    profile_name:'Nombre', profile_email:'Correo',
+    profile_language:'Idioma', profile_currency:'Moneda',
+    save:'Guardar', my_plan:'Mi Plan',
+    danger_zone:'Zona de Peligro', delete_account:'Eliminar Cuenta',
+    upgrade:'✦ Mejorar a Pro', cancel:'Cancelar', add:'Agregar',
+    loading:'Cargando…', no_dividend:'Sin Dividendo',
+    on_market_value:'sobre valor de mercado', on_cost:'sobre costo',
+    free_plan:'Plan Gratuito', pro_plan:'Plan Pro',
+    free_limit:'Máx. 10 posiciones · Anuncios · Funciones básicas',
+    pro_features:'Posiciones ilimitadas · Todo incluido · Sin anuncios',
+    demo_hint:'Los datos demo no se guardan.',
+    register_now:'Registrarse ahora',
+  },
+  fr: {
+    dashboard:'Tableau de bord', diversification:'Diversification',
+    dividends:'Dividendes', forecast:'Valeur Future', research:'Recherche',
+    total_portfolio:'Portefeuille Total', portfolio_yield:'Rendement',
+    yield_on_cost:'Rendement/Coût', annual_income:'Revenu Annuel',
+    positions:'Positions', add_stock:'+ Ajouter Action',
+    no_stocks:'Aucune action dans le portefeuille',
+    no_stocks_sub:'Ajoutez votre première action à dividende et regardez vos revenus passifs croître.',
+    first_stock:'+ Première Action',
+    ticker:'Ticker', shares:'Actions', market_value:'Valeur Marché',
+    day_change:'Jour Δ', avg_cost:'Coût Moy.', gain_loss:'Gain/Perte',
+    login:'Se Connecter', register:"S'inscrire", logout:'Se Déconnecter',
+    email:'E-mail', password:'Mot de passe', name:'Nom',
+    create_account:'Créer un Compte', forgot_password:'Mot de passe oublié?',
+    demo:'Voir la Démo (sans compte)',
+    profile_name:'Nom', profile_email:'E-mail',
+    profile_language:'Langue', profile_currency:'Devise',
+    save:'Enregistrer', my_plan:'Mon Abonnement',
+    danger_zone:'Zone Dangereuse', delete_account:'Supprimer le Compte',
+    upgrade:'✦ Passer à Pro', cancel:'Annuler', add:'Ajouter',
+    loading:'Chargement…', no_dividend:'Pas de Dividende',
+    on_market_value:'sur valeur marché', on_cost:'sur coût',
+    free_plan:'Offre Gratuite', pro_plan:'Offre Pro',
+    free_limit:'Max. 10 positions · Publicités · Fonctions de base',
+    pro_features:'Positions illimitées · Tout inclus · Sans publicité',
+    demo_hint:'Les données démo ne sont pas sauvegardées.',
+    register_now:"S'inscrire maintenant",
+  },
+};
+
+const LOCALE_MAP     = { de:'de-DE', en:'en-US', es:'es-ES', fr:'fr-FR' };
+const CURRENCY_SYMBOL = { USD:'$', EUR:'€', GBP:'£' };
+
+function t(key) {
+  return TRANSLATIONS[currentLang]?.[key] || TRANSLATIONS['en']?.[key] || key;
+}
+
+function setLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('diq_lang', lang);
+  applyTranslations();
+  renderDashboard();
+  updateFreemiumUI();
+  if(activeTab) { Object.keys(inited).forEach(k => delete inited[k]); showTab(activeTab); }
+}
+
+function setCurrency(currency) {
+  currentCurrency = currency;
+  localStorage.setItem('diq_currency', currency);
+  renderDashboard();
+}
+
+function applyTranslations() {
+  // Nav
+  const navKeys = ['dashboard','diversification','dividends','forecast','research'];
+  document.querySelectorAll('#main-nav .nav-btn').forEach((btn,i) => {
+    btn.textContent = t(navKeys[i]);
+  });
+  // Upgrade button
+  const upBtn = document.getElementById('upgrade-nav-btn');
+  if(upBtn) upBtn.textContent = t('upgrade');
+  // data-i18n elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+  // Language & currency selectors
+  const ls = document.getElementById('language-select');
+  if(ls) ls.value = currentLang;
+  const cs = document.getElementById('currency-select');
+  if(cs) cs.value = currentCurrency;
+  // Auth tabs
+  const authTabs = document.querySelectorAll('.auth-tab');
+  if(authTabs[0]) authTabs[0].textContent = t('login');
+  if(authTabs[1]) authTabs[1].textContent = t('register');
+}
+
+function initLanguage() {
+  currentLang     = localStorage.getItem('diq_lang')     || 'de';
+  currentCurrency = localStorage.getItem('diq_currency') || 'USD';
+  applyTranslations();
+}
+
+// Override fmt and fU to use current locale
+function fmt(n, d=2) {
+  if(n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString(LOCALE_MAP[currentLang] || 'en-US', {
+    minimumFractionDigits: d, maximumFractionDigits: d
+  });
+}
+function fU(n) {
+  return (CURRENCY_SYMBOL[currentCurrency] || '$') + fmt(n, 0);
+}
+
 (async function init() {
+  initLanguage();
   loadTokens();
   const saved = DB.loadUser();
   if (saved && authToken) {
@@ -2093,6 +2356,8 @@ async function checkUpgradeRedirect() {
       clearTokens();
       localStorage.removeItem('diq_user');
     }
+  } else {
+    initLanguage();
   }
 })();
 </script>
