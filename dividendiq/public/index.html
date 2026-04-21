@@ -423,11 +423,9 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
       <div style="max-width:620px;">
         <div class="pc">
           <div class="pc-title">Mein Plan</div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <div><div style="font-size:15px;font-weight:700;">Kostenlos-Plan</div><div style="font-size:12px;color:var(--text2);margin-top:3px;">Max. 20 Positionen · Werbeanzeigen · Basis-Features</div></div>
-            <span style="background:#e0e7ff;color:#4338ca;display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;">FREE</span>
+          <div id="profile-plan-section">
+            <!-- Rendered dynamically by updateFreemiumUI -->
           </div>
-          <button class="save-btn" onclick="openModal('upgrade')" style="background:linear-gradient(135deg,#4f8ef7,#7c3aed);width:100%;padding:11px;font-size:14px;">✦ Auf Pro upgraden — €9,99/Monat</button>
         </div>
         <div class="pc">
           <div class="pc-title">Persönliche Daten</div>
@@ -793,6 +791,33 @@ function updateFreemiumUI() {
       btn.style.opacity = '0.6';
     }
   });
+  // Update profile plan section
+  const planSection = document.getElementById('profile-plan-section');
+  if(planSection) {
+    if(pro) {
+      planSection.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div>
+            <div style="font-size:15px;font-weight:700;">Pro-Plan</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px;">Unbegrenzte Positionen · Alle Features · Keine Werbung</div>
+          </div>
+          <span style="background:#dcfce7;color:#16a34a;display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;">✦ PRO</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);padding:10px;background:#f0fdf9;border-radius:8px;border:1px solid #6ee7b7;">
+          Vielen Dank für dein Vertrauen! Dein Pro-Abo ist aktiv.
+        </div>`;
+    } else {
+      planSection.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div>
+            <div style="font-size:15px;font-weight:700;">Kostenlos-Plan</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px;">Max. 10 Positionen · Werbeanzeigen · Basis-Features</div>
+          </div>
+          <span style="background:#e0e7ff;color:#4338ca;display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;">FREE</span>
+        </div>
+        <button class="save-btn" onclick="openModal('upgrade')" style="background:linear-gradient(135deg,#4f8ef7,#7c3aed);width:100%;padding:11px;font-size:14px;">✦ Auf Pro upgraden — €9,99/Monat</button>`;
+    }
+  }
   // Ads — hide for pro
   document.querySelectorAll('.ad-banner').forEach(el => {
     el.style.display = pro ? 'none' : 'flex';
