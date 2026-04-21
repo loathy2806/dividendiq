@@ -131,7 +131,25 @@ exports.handler = async (event) => {
       })};
     }
 
-    // ── REFRESH TOKEN ─────────────────────────────────────
+    // ── FORGOT PASSWORD ───────────────────────────────────
+    if (action === 'forgot_password') {
+      const { email } = body;
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        return { statusCode: 400, headers: CORS,
+          body: JSON.stringify({ error: data.message || 'Fehler beim Senden' }) };
+      }
+      return { statusCode: 200, headers: CORS,
+        body: JSON.stringify({ success: true }) };
+    }
     if (action === 'refresh') {
       const { refresh_token } = body;
       const res = await supabaseAuth('/token?grant_type=refresh_token', { refresh_token });
