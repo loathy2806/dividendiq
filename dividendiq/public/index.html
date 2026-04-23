@@ -298,7 +298,7 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
       </div>
     </div>
 
-    <div class="auth-footer">Durch die Registrierung stimmst du unseren <a href="#" style="color:var(--c1d)">AGB</a> zu.</div>
+    <div class="auth-footer">Durch die Registrierung stimmst du unseren <a href="/agb.html" style="color:var(--c1d)">AGB</a> und unserer <a href="/datenschutz.html" style="color:var(--c1d)">Datenschutzerklärung</a> zu.</div>
   </div>
 </div>
 
@@ -464,6 +464,19 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
           <button class="save-btn" onclick="saveProfile()" data-i18n="save">Speichern</button>
         </div>
         <div class="pc">
+          <div class="pc-title">📥 Export</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:14px;">Portfolio als CSV-Datei herunterladen — kompatibel mit Excel und Google Sheets.</div>
+          <button class="save-btn" onclick="exportCSV()" style="background:#4f8ef7;">⬇ Portfolio als CSV exportieren</button>
+        </div>
+        <div class="pc">
+          <div class="pc-title">Support & Rechtliches</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+            <a href="mailto:support@dividendiq.app" style="color:var(--c1d);font-weight:600;text-decoration:none;">📧 support@dividendiq.app</a>
+            <a href="/agb.html" target="_blank" style="color:var(--text2);text-decoration:none;">📄 Allgemeine Geschäftsbedingungen</a>
+            <a href="/datenschutz.html" target="_blank" style="color:var(--text2);text-decoration:none;">🔒 Datenschutzerklärung</a>
+          </div>
+        </div>
+        <div class="pc">
           <div class="pc-title" style="color:var(--danger)">Gefahrenzone</div>
           <div style="font-size:13px;color:var(--text2);margin-bottom:14px;">Konto löschen entfernt alle Daten dauerhaft.</div>
           <button class="danger-btn" onclick="openModal('delete')">Konto löschen</button>
@@ -551,6 +564,41 @@ input:focus,select:focus{border-color:var(--c1);box-shadow:0 0 0 3px rgba(0,196,
     </div>
     <div class="modal-btns">
       <button class="cancel-btn" onclick="closeModals()">Später</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT HOLDING MODAL -->
+<div class="modal-overlay" id="modal-edit-holding" onclick="if(event.target===this)closeModals()">
+  <div class="modal">
+    <div class="modal-title">Position bearbeiten</div>
+    <div class="modal-sub" id="edit-ticker-label"></div>
+    <input type="hidden" id="edit-ticker-hidden">
+    <div class="stock-form" style="margin-top:16px;">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="fl">Anzahl Aktien</label>
+          <input class="fi" type="number" id="edit-shares" min="0.001" step="any">
+        </div>
+        <div class="form-group">
+          <label class="fl">Ø Einstiegspreis ($)</label>
+          <input class="fi" type="number" id="edit-cost" min="0" step="any">
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="fl">Kauf-Datum</label>
+          <input class="fi" type="date" id="edit-date">
+        </div>
+        <div class="form-group">
+          <label class="fl">Depot / Broker (optional)</label>
+          <input class="fi" type="text" id="edit-broker" placeholder="z.B. Flatex">
+        </div>
+      </div>
+    </div>
+    <div class="modal-btns" style="margin-top:16px;">
+      <button class="cancel-btn" onclick="closeModals()">Abbrechen</button>
+      <button class="primary-btn" onclick="saveEditHolding()">Speichern</button>
     </div>
   </div>
 </div>
@@ -1090,6 +1138,83 @@ function removeHolding(ticker) {
   renderDashboard();
 }
 
+function editHolding(ticker) {
+  const h = HOLDINGS.find(x => x.ticker === ticker);
+  if (!h) return;
+
+  // Open edit modal
+  const modal = document.getElementById('modal-edit-holding');
+  if (!modal) return;
+
+  document.getElementById('edit-ticker-label').textContent = `${h.ticker} — ${h.name}`;
+  document.getElementById('edit-shares').value  = h.shares;
+  document.getElementById('edit-cost').value    = h.cost;
+  document.getElementById('edit-date').value    = h.date || new Date().toISOString().slice(0,10);
+  document.getElementById('edit-broker').value  = h.broker || '';
+  document.getElementById('edit-ticker-hidden').value = ticker;
+  modal.classList.add('open');
+}
+
+async function saveEditHolding() {
+  const ticker  = document.getElementById('edit-ticker-hidden').value;
+  const shares  = parseFloat(document.getElementById('edit-shares').value);
+  const cost    = parseFloat(document.getElementById('edit-cost').value);
+  const date    = document.getElementById('edit-date').value;
+  const broker  = document.getElementById('edit-broker').value;
+
+  if (!shares || shares <= 0) { alert('Bitte gültige Anzahl eingeben.'); return; }
+  if (!cost   || cost   <= 0) { alert('Bitte gültigen Einstiegspreis eingeben.'); return; }
+
+  const h = HOLDINGS.find(x => x.ticker === ticker);
+  if (!h) return;
+
+  h.shares = shares;
+  h.cost   = cost;
+  h.date   = date;
+  h.broker = broker;
+
+  DB.save();
+  await savePortfolio();
+  closeModals();
+  Object.keys(inited).forEach(k => delete inited[k]);
+  renderDashboard();
+}
+
+// ── CSV EXPORT ───────────────────────────────────────
+function exportCSV() {
+  if (!HOLDINGS.length) {
+    alert('Keine Positionen zum Exportieren.');
+    return;
+  }
+  const sym = CURRENCY_SYMBOL[currentCurrency] || '$';
+  const headers = ['Ticker','Name','Sektor','Stück','Einstiegspreis','Marktwert','Jahres-Dividende','Yield %','Yield on Cost %','Gewinn/Verlust','G/V %','Datum','Broker'];
+  const rows = HOLDINGS.map(h => {
+    const mv  = h.shares * h.price;
+    const tc  = h.shares * h.cost;
+    const gl  = mv - tc;
+    const glP = tc > 0 ? (gl/tc*100).toFixed(2) : '0';
+    const ann = h.shares * (h.annDiv || 0);
+    const yld = h.price > 0 ? ((h.annDiv||0)/h.price*100).toFixed(2) : '0';
+    const yoc = h.cost  > 0 ? ((h.annDiv||0)/h.cost *100).toFixed(2) : '0';
+    return [
+      h.ticker, `"${h.name}"`, `"${h.sector||''}"`,
+      h.shares, h.cost.toFixed(2), mv.toFixed(2),
+      ann.toFixed(2), yld, yoc,
+      gl.toFixed(2), glP,
+      h.date || '', `"${h.broker||''}"`
+    ].join(',');
+  });
+
+  const csv  = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `DividendIQ_Portfolio_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ═══════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════
 // UTILS — fmt/fU defined in i18n section below
@@ -1157,7 +1282,10 @@ function renderDashboard(){
       <td>${fmt(h.yield,2)}%</td>
       <td>${h.yield>0?fmt(yoc,2)+'%':'—'}</td>
       <td class="${ann>0?'green':''}">${ann>0?fU(ann):'—'}</td>
-      <td><button class="remove-btn" onclick="removeHolding('${h.ticker}')" title="Entfernen">✕</button></td>
+      <td style="display:flex;gap:4px;">
+        <button class="remove-btn" onclick="editHolding('${h.ticker}')" title="Bearbeiten" style="background:#e0e7ff;color:#4338ca;border-color:#c7d2fe;">✏</button>
+        <button class="remove-btn" onclick="removeHolding('${h.ticker}')" title="Entfernen">✕</button>
+      </td>
     </tr>`;
   });
   wrap.innerHTML = `<table class="ht">
