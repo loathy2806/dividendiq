@@ -1575,11 +1575,6 @@ const STOCK_DB = [
 function selectStock(ticker) {
   selectStockLive(ticker);
 }
-  document.getElementById('inp-cost').value = selectedStock.price.toFixed(2);
-  document.getElementById('inp-date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('add-stock-confirm-btn').disabled = false;
-  document.getElementById('inp-shares').focus();
-}
 
 async function confirmAddStock() {
   if (!selectedStock) return;
@@ -2180,7 +2175,7 @@ function quickAddFromResearch(ticker) {
 // ═══════════════════════════════════════════════════
 // STOCK DETAIL
 // ═══════════════════════════════════════════════════
-let prevTab='dashboard', pcInst=null, dhInst=null, compChartInst=null;
+let prevTab='dashboard';
 
 function openDetail(ticker) {
   const s = STOCK_DB.find(x => x.ticker === ticker) || HOLDINGS.find(x => x.ticker === ticker);
