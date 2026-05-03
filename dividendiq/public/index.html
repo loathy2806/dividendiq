@@ -390,6 +390,20 @@ body.dark .modal{background:#1a1d27;border:1px solid #2a2d3a;}
 body.dark .stock-card{background:#1a1d27;border-color:#2a2d3a;}
 body.dark .stock-card:hover{background:#22253a;}
 body.dark .form-input{background:#22253a;border-color:#2a2d3a;color:var(--text);}
+body.dark input[type="text"],body.dark input[type="email"],body.dark input[type="password"],body.dark input[type="number"],body.dark input[type="date"]{background:#22253a!important;border-color:#2a2d3a!important;color:#e8eaf0!important;}
+body.dark .form-row-p input{background:#22253a!important;color:#e8eaf0!important;border-color:#2a2d3a!important;}
+body.dark .form-label-p{color:#9094a8!important;}
+body.dark .param-label{color:#9094a8!important;}
+body.dark .slider-val{color:#e8eaf0!important;}
+body.dark .kpi-label{color:#9094a8!important;}
+body.dark .kpi-sub{color:#9094a8!important;}
+body.dark .sc-title{color:#e8eaf0!important;}
+body.dark .hl-label{color:#9094a8!important;}
+body.dark .sdh-m-label{color:#9094a8!important;}
+body.dark .modal-sub{color:#9094a8!important;}
+body.dark .lp-plan-period{color:#9094a8!important;}
+body.dark .yr-btn{background:#22253a!important;border-color:#2a2d3a!important;color:#e8eaf0!important;}
+body.dark .yr-btn.active{background:var(--c1)!important;color:#fff!important;}
 body.dark .sdh{background:#1a1d27;border-color:#2a2d3a;}
 body.dark .pc{background:#1a1d27;border-color:#2a2d3a;}
 body.dark .search-results{background:#1a1d27;border-color:#2a2d3a;}
@@ -719,8 +733,8 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
       <button class="nav-btn" onclick="showTab('dividends')" data-nav="dividends">Dividends</button>
       <button class="nav-btn" onclick="showTab('forecast')" data-nav="forecast">Forecast</button>
       <button class="nav-btn" onclick="showTab('research')" data-nav="research">Research</button>
-      <button class="nav-btn" onclick="showTab('watchlist')" data-nav="watchlist">👁 Watchlist</button>
-      <button class="nav-btn" onclick="showTab('benchmark')" data-nav="benchmark">📈 Benchmark</button>
+      <button class="nav-btn" onclick="showTab('watchlist')" data-nav="watchlist">👁 Watchlist 🔒</button>
+      <button class="nav-btn" onclick="showTab('benchmark')" data-nav="benchmark">📈 Benchmark 🔒</button>
     </div>
     <div class="topbar-right">
       <button id="upgrade-nav-btn" class="upgrade-btn" onclick="openModal('upgrade')">✦ Upgrade to Pro</button>
@@ -991,23 +1005,23 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
       <span>✅ Price Charts & Dividend History</span>
       <span>✅ Erweiterte Prognosen (bis 25 Jahre)</span>
       <span>✅ Keine Werbung</span>
-      <span>✅ Prioritäts-Support</span>
+      <span id="upgrade-feat-6">✅ Priority Support</span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0;">
       <div style="background:#f0fdf9;border:2px solid #6ee7b7;border-radius:10px;padding:14px;text-align:center;cursor:pointer;" onclick="startCheckout('monthly')">
         <div style="font-size:20px;font-weight:900;color:var(--c1d);">€9,99</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:3px;">/ Monat</div>
-        <div style="margin-top:8px;padding:6px;background:var(--c1d);color:#fff;border-radius:6px;font-size:12px;font-weight:700;" id="btn-monthly">${t('monthly')}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px;">/ <span id="modal-month-label">Month</span></div>
+        <div style="margin-top:8px;padding:6px;background:var(--c1d);color:#fff;border-radius:6px;font-size:12px;font-weight:700;" id="btn-monthly">Choose Monthly</div>
       </div>
       <div style="background:#f5f3ff;border:2px solid #c4b5fd;border-radius:10px;padding:14px;text-align:center;cursor:pointer;position:relative;" onclick="startCheckout('yearly')">
-        <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#7c3aed;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">SPAR 25%</div>
+        <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#7c3aed;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">SAVE 25%</div>
         <div style="font-size:20px;font-weight:900;color:#7c3aed;">€89,99</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:3px;">/ ${t('year')}</div>
-        <div style="margin-top:8px;padding:6px;background:#7c3aed;color:#fff;border-radius:6px;font-size:12px;font-weight:700;" id="btn-yearly">${t('yearly')}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px;">/ <span id="modal-year-label">Year</span></div>
+        <div style="margin-top:8px;padding:6px;background:#7c3aed;color:#fff;border-radius:6px;font-size:12px;font-weight:700;" id="btn-yearly">Choose Yearly</div>
       </div>
     </div>
     <div class="modal-btns">
-      <button class="cancel-btn" onclick="closeModals()">Später</button>
+      <button class="cancel-btn" onclick="closeModals()">Later</button>
     </div>
   </div>
 </div>
@@ -1980,6 +1994,28 @@ function renderDividendsTab(){
 // FORECAST
 // ═══════════════════════════════════════════════════
 let fcChartInst=null,forecastYears=10;
+function updateForecastSlider(type) {
+  const slider = document.getElementById('sl-'+type);
+  const input  = document.getElementById('inp-'+type);
+  const label  = document.getElementById('v-'+type);
+  if(!slider) return;
+  const val = parseFloat(slider.value);
+  if(input) input.value = val;
+  if(label) label.textContent = type==='contrib' ? (CURRENCY_SYMBOL[currentCurrency]||'$')+fmt(val,0) : fmt(val,2)+'%';
+  updateForecast();
+}
+
+function updateForecastInput(type) {
+  const input  = document.getElementById('inp-'+type);
+  const slider = document.getElementById('sl-'+type);
+  const label  = document.getElementById('v-'+type);
+  if(!input) return;
+  const val = parseFloat(input.value) || 0;
+  if(slider) slider.value = Math.min(val, parseFloat(slider.max)||50000);
+  if(label) label.textContent = type==='contrib' ? (CURRENCY_SYMBOL[currentCurrency]||'$')+fmt(val,0) : fmt(val,2)+'%';
+  updateForecast();
+}
+
 function renderForecastTab(){
   const el=document.getElementById('forecast-content');
   const p=calcPortfolio();
@@ -2005,31 +2041,34 @@ function renderForecastTab(){
       </div>
     </div>
     <div class="sc">
-      <div class="sc-title">Parameter anpassen</div>
+      <div class="sc-title">Adjust Parameters</div>
       <div class="param-grid">
         <div>
           <div class="param-label">Dividend Growth / Year (%)</div>
-          <div class="slider-row"><input type="range" min="0" max="15" step="0.1" value="5.34" id="sl-growth" oninput="updateForecast()"><span class="slider-val" id="v-growth">5.34%</span></div>
-          <div class="param-label">Kurssteigerung / Jahr (%)</div>
-          <div class="slider-row"><input type="range" min="0" max="15" step="0.1" value="3" id="sl-price" oninput="updateForecast()"><span class="slider-val" id="v-price">3.00%</span></div>
+          <div class="slider-row"><input type="range" min="0" max="15" step="0.1" value="5.34" id="sl-growth" oninput="updateForecastSlider('growth')"><span class="slider-val" id="v-growth">5.34%</span></div>
+          <input type="number" id="inp-growth" value="5.34" min="0" max="15" step="0.1" oninput="updateForecastInput('growth')" style="margin-top:4px;margin-bottom:12px;">
+          <div class="param-label">Price Appreciation / Year (%)</div>
+          <div class="slider-row"><input type="range" min="0" max="15" step="0.1" value="3" id="sl-price" oninput="updateForecastSlider('price')"><span class="slider-val" id="v-price">3.00%</span></div>
+          <input type="number" id="inp-price" value="3" min="0" max="15" step="0.1" oninput="updateForecastInput('price')" style="margin-top:4px;">
         </div>
         <div>
-          <div class="param-label" style="margin-bottom:7px;">Jährliche Beiträge ($)</div>
-          <input type="number" id="inp-contrib" value="0" min="0" step="100" oninput="updateForecast()" placeholder="z.B. 2400" style="margin-bottom:14px;">
+          <div class="param-label" style="margin-bottom:7px;">Annual Contributions (<span id="contrib-currency-label">$</span>)</div>
+          <div class="slider-row"><input type="range" min="0" max="50000" step="100" value="0" id="sl-contrib" oninput="updateForecastSlider('contrib')"><span class="slider-val" id="v-contrib">0</span></div>
+          <input type="number" id="inp-contrib" value="0" min="0" step="100" oninput="updateForecastInput('contrib')" style="margin-top:4px;margin-bottom:12px;">
           <div class="param-label" style="margin-bottom:7px;">Max. Dividend Yield (%)</div>
           <input type="number" id="inp-maxyd" value="10" min="1" max="20" step="0.5" oninput="updateForecast()">
         </div>
       </div>
     </div>
     <div class="sc">
-      <div class="sc-title">Prognose-Chart</div>
+      <div class="sc-title">Forecast Chart</div>
       <div style="display:flex;gap:16px;font-size:12px;color:var(--text2);margin-bottom:10px;">
-        <span><span style="display:inline-block;width:12px;height:12px;background:#00c48c;border-radius:2px;margin-right:5px;vertical-align:middle"></span>Jährl. Dividende (links)</span>
-        <span><span style="display:inline-block;width:12px;height:12px;background:#4f8ef7;border-radius:50%;margin-right:5px;vertical-align:middle"></span>Portfoliowert (rechts)</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:#00c48c;border-radius:2px;margin-right:5px;vertical-align:middle"></span>Annual Dividend (left)</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:#4f8ef7;border-radius:50%;margin-right:5px;vertical-align:middle"></span>Portfolio Value (right)</span>
       </div>
-      <div style="position:relative;height:300px;"><canvas id="forecastChart" role="img" aria-label="Prognose"></canvas></div>
+      <div style="position:relative;height:300px;"><canvas id="forecastChart" role="img" aria-label="Forecast"></canvas></div>
     </div>
-    <div class="sc"><div class="sc-title">Jahresübersicht</div><div id="proj-table"></div></div>`;
+    <div class="sc"><div class="sc-title">Year by Year Overview</div><div id="proj-table"></div></div>`;
   updateForecast();
 }
 
@@ -2039,17 +2078,25 @@ function setForecastYears(y){
     return;
   }
   forecastYears=y;
-  document.querySelectorAll('#years-toggle .yr-btn').forEach(b=>b.classList.toggle('active',b.textContent===y+' Jahre'));
+  document.querySelectorAll('#years-toggle .yr-btn').forEach(b=>{
+    const y = parseInt(b.textContent);
+    b.classList.toggle('active', y === forecastYears);
+  });
   updateForecast();
 }
 function updateForecast(){
+  const sym = CURRENCY_SYMBOL[currentCurrency] || '$';
+  // Update currency label
+  const cl = document.getElementById('contrib-currency-label');
+  if(cl) cl.textContent = sym;
   const p=calcPortfolio();
-  const growth=parseFloat(document.getElementById('sl-growth')?.value)||5.34;
-  const priceApp=parseFloat(document.getElementById('sl-price')?.value)||3;
-  const contrib=parseFloat(document.getElementById('inp-contrib')?.value)||0;
-  const maxYield=parseFloat(document.getElementById('inp-maxyd')?.value)||10;
+  const growth   = parseFloat(document.getElementById('inp-growth')?.value) || parseFloat(document.getElementById('sl-growth')?.value) || 5.34;
+  const priceApp = parseFloat(document.getElementById('inp-price')?.value)  || parseFloat(document.getElementById('sl-price')?.value)  || 3;
+  const contrib  = parseFloat(document.getElementById('inp-contrib')?.value) || 0;
+  const maxYield = parseFloat(document.getElementById('inp-maxyd')?.value)   || 10;
   if(document.getElementById('v-growth')) document.getElementById('v-growth').textContent=fmt(growth,2)+'%';
   if(document.getElementById('v-price'))  document.getElementById('v-price').textContent=fmt(priceApp,2)+'%';
+  if(document.getElementById('v-contrib')) document.getElementById('v-contrib').textContent=sym+fmt(contrib,0);
   if(document.getElementById('f-growth-val')) document.getElementById('f-growth-val').textContent=fmt(growth,2)+'%';
   let portfolio=p.total,annualDiv=p.annDiv;
   const labels=[],portVals=[],divVals=[];
@@ -2277,14 +2324,9 @@ function renderSimulatedDivHist(s){
 }
 
 function showDetailTab(t,el){
-  // Gate Pro-only tabs
-  const gated = {
-    'chart':       !isPro() ? 'chart'   : null,
-    'competition': !isPro() ? 'comp'    : null,
-    'financials':  !isPro() ? 'fin'     : null,
-  };
-  if(gated[t]) { requirePro(gated[t]); return; }
-
+  const pro = isPro();
+  const gated = { 'chart': !pro, 'competition': !pro, 'financials': !pro };
+  if(gated[t]) { requirePro(t==='chart'?'chart':t==='competition'?'comp':'fin'); return; }
   ['chart','summary','dividends','competition','financials'].forEach(s=>document.getElementById('dtab-'+s)?.classList.toggle('hidden',s!==t));
   document.querySelectorAll('.detail-tab').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
@@ -2736,8 +2778,8 @@ function showTab(t){
     if(t==='dividends')       renderDividendsTab();
     if(t==='forecast')        renderForecastTab();
     if(t==='research')        renderResearch();
-    if(t==='watchlist')       renderWatchlist();
-    if(t==='benchmark')       renderBenchmark();
+    if(t==='watchlist')       { if(!isPro()) { requirePro('research'); return; } renderWatchlist(); }
+    if(t==='benchmark')       { if(!isPro()) { requirePro('research'); return; } renderBenchmark(); }
   }
   // Always re-render dynamic tabs when portfolio changes
   if(t==='diversification') renderDiversification();
@@ -3249,7 +3291,15 @@ function applyTranslations() {
   if(ls) ls.value = currentLang;
   const cs = document.getElementById('currency-select');
   if(cs) cs.value = currentCurrency;
-  // Re-render current tab if logged in
+  // Update upgrade modal labels
+  const ml = document.getElementById('modal-month-label');
+  const yl = document.getElementById('modal-year-label');
+  const bm = document.getElementById('btn-monthly');
+  const by = document.getElementById('btn-yearly');
+  if(ml) ml.textContent = t('month');
+  if(yl) yl.textContent = t('year');
+  if(bm) bm.textContent = t('monthly');
+  if(by) by.textContent = t('yearly');
   if(currentUser) {
     renderDashboard();
     // Re-render active tab
