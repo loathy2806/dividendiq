@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/favicon.svg">
 <title>DividendIQ — Smart Dividend Portfolio Tracker</title>
 <meta name="description" content="Track your dividend portfolio with real-time prices, income forecasts and research tools. Free to start.">
 <meta name="theme-color" content="#00c48c">
@@ -1471,24 +1473,27 @@ function updateFreemiumUI() {
       planSection.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
           <div>
-            <div style="font-size:15px;font-weight:700;">Pro-Plan</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:3px;">Unlimited positions · All features · No ads</div>
+            <div style="font-size:15px;font-weight:700;">${t('pro_plan')}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px;">${t('pro_features')}</div>
           </div>
           <span style="background:#dcfce7;color:#16a34a;display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;">✦ PRO</span>
         </div>
         <div style="font-size:12px;color:var(--text2);padding:10px;background:#f0fdf9;border-radius:8px;border:1px solid #6ee7b7;">
-          Vielen Dank für dein Vertrauen! Dein Pro-Abo ist aktiv.
+          ${currentLang==='de' ? 'Vielen Dank für dein Vertrauen! Dein Pro-Abo ist aktiv.' :
+            currentLang==='es' ? '¡Gracias por tu confianza! Tu suscripción Pro está activa.' :
+            currentLang==='fr' ? 'Merci pour votre confiance ! Votre abonnement Pro est actif.' :
+            'Thank you for your trust! Your Pro subscription is active.'}
         </div>`;
     } else {
       planSection.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
           <div>
-            <div style="font-size:15px;font-weight:700;">Kostenlos-Plan</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:3px;">Max. 10 positions · Ads · Basic features</div>
+            <div style="font-size:15px;font-weight:700;">${t('free_plan')}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px;">${t('free_limit')}</div>
           </div>
           <span style="background:#e0e7ff;color:#4338ca;display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;">FREE</span>
         </div>
-        <button class="save-btn" onclick="openModal('upgrade')" style="background:linear-gradient(135deg,#4f8ef7,#7c3aed);width:100%;padding:11px;font-size:14px;">✦ Auf Pro upgraden — €9,99/Monat</button>`;
+        <button class="save-btn" onclick="openModal('upgrade')" style="background:linear-gradient(135deg,#4f8ef7,#7c3aed);width:100%;padding:11px;font-size:14px;">${t('upgrade')} — €9,99/${t('month')}</button>`;
     }
   }
   // Ads — hide for pro
@@ -1922,23 +1927,48 @@ function renderDividendsTab(){
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">${t('no_dividends')}</div><div class="empty-sub">${t('no_dividends_sub')}</div><button class="add-btn" onclick="showTab('dashboard');openModal('addstock')">${t('add_stock')}</button></div>`;
     return;
   }
-  // Estimate monthly dividends: assume quarterly payers spread evenly
+  // Correct dividend frequency per holding
   const annualDiv = HOLDINGS.reduce((a,h)=>a+h.shares*h.annDiv,0);
+  const sym = CURRENCY_SYMBOL[currentCurrency]||'$';
+
+  // Build monthly estimates based on actual frequency
   const monthlyEst = Array(12).fill(0);
   HOLDINGS.forEach(h=>{
-    if(h.annDiv<=0)return;
-    const qDiv=h.shares*h.annDiv/4;
-    // distribute to 4 months per year roughly
-    [3,6,9,0].forEach((m,i)=>{ monthlyEst[m]+=qDiv/3; monthlyEst[(m+1)%12]+=qDiv/3; monthlyEst[(m+2)%12]+=qDiv/3; });
+    if(h.annDiv<=0) return;
+    const freq = h.frequency || 4; // default quarterly
+    const perPayment = (h.shares*h.annDiv)/freq;
+    if(freq===12) {
+      // Monthly — spread evenly
+      for(let i=0;i<12;i++) monthlyEst[i]+=perPayment;
+    } else if(freq===4) {
+      // Quarterly — Mar/Jun/Sep/Dec pattern
+      [2,5,8,11].forEach(m=>monthlyEst[m]+=perPayment);
+    } else if(freq===2) {
+      // Semi-annual
+      [2,8].forEach(m=>monthlyEst[m]+=perPayment);
+    } else {
+      // Annual
+      monthlyEst[11]+=perPayment;
+    }
   });
-  // simpler: just spread annDiv across 12 months with variance
-  const seed = annualDiv/12;
-  const divData = MONTHS.map((_,i)=>Math.round(seed*(0.7+Math.random()*0.8)));
+
+  const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const now = new Date();
+  const startMonth = now.getMonth();
+  const startYear  = now.getFullYear();
+
+  // Rotate to start from current month
+  const rotatedData = Array(12).fill(0).map((_,i)=>Math.round(monthlyEst[(startMonth+i)%12]));
+  const rotatedLabels = Array(12).fill(0).map((_,i)=>{
+    const m = (startMonth+i)%12;
+    const y = startYear + Math.floor((startMonth+i)/12);
+    return MONTH_LABELS[m]+' '+String(y).slice(2);
+  });
 
   el.innerHTML = `
     <div class="sc">
       <div class="sc-title">${t('monthly_income')} <span style="font-size:12px;color:var(--text3);font-weight:400">(${t('estimate')})</span></div>
-      <div style="position:relative;height:220px;"><canvas id="divChart" role="img" aria-label="Monatliche Dividenden"></canvas></div>
+      <div style="position:relative;height:220px;"><canvas id="divChart" role="img" aria-label="Monthly Dividends"></canvas></div>
     </div>
     <div class="sc">
       <div class="sc-title">${t('next_12')}</div>
@@ -1949,45 +1979,50 @@ function renderDividendsTab(){
   if(divChartInst) divChartInst.destroy();
   divChartInst = new Chart(document.getElementById('divChart').getContext('2d'),{
     type:'bar',
-    data:{labels:MONTHS.map((m,i)=>m+'\n$'+divData[i]),datasets:[{label:'$',data:divData,backgroundColor:'#00c48c',borderRadius:5,borderSkipped:false}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' $'+fmt(c.raw,0)}}},
-      scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v}},x:{ticks:{autoSkip:false,font:{size:10}}}}}
+    data:{
+      labels:rotatedLabels.map((m,i)=>m+'\n'+sym+fmt(rotatedData[i],0)),
+      datasets:[{label:sym,data:rotatedData,backgroundColor:'#00c48c',borderRadius:5,borderSkipped:false}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+sym+fmt(c.raw,0)}}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>sym+v}},x:{ticks:{autoSkip:false,font:{size:10}}}}}
   });
 
-  // Payout grid — build from holdings quarterly
-  const monthOrder=['Apr-26','Mai-26','Jun-26','Jul-26','Aug-26','Sep-26','Okt-26','Nov-26','Dez-26','Jan-27','Feb-27','Mär-27'];
+  // Payout grid with correct frequency labels
   const tickers=HOLDINGS.filter(h=>h.annDiv>0).map(h=>h.ticker);
-  // simple quarterly distribution: Q1=Mar/Jun/Sep/Dec, Q2=Apr/Jul/Oct/Jan, Q3=May/Aug/Nov/Feb, Q4=Jun/Sep/Dec/Mar
-  const qMap={
-    'Apr-26':0,'Jul-26':0,'Okt-26':0,'Jan-27':0,
-    'Mai-26':1,'Aug-26':1,'Nov-26':1,'Feb-27':1,
-    'Jun-26':2,'Sep-26':2,'Dez-26':2,'Mär-27':2,
-  };
   const payGrid={};
-  tickers.forEach(t=>{
-    const h=HOLDINGS.find(x=>x.ticker===t);
-    if(!h||!h.annDiv)return;
-    payGrid[t]={};
-    monthOrder.forEach(m=>{
-      const q=qMap[m];
-      if(q!==undefined) payGrid[t][m]=parseFloat((h.shares*h.annDiv/4).toFixed(2));
+  tickers.forEach(ticker=>{
+    const h=HOLDINGS.find(x=>x.ticker===ticker);
+    if(!h||!h.annDiv) return;
+    payGrid[ticker]={};
+    const freq = h.frequency || 4;
+    const perPayment = (h.shares*h.annDiv)/freq;
+    rotatedLabels.forEach((label,i)=>{
+      const monthIdx = (startMonth+i)%12;
+      let pays = false;
+      if(freq===12) pays=true;
+      else if(freq===4) pays=[2,5,8,11].includes(monthIdx);
+      else if(freq===2) pays=[2,8].includes(monthIdx);
+      else pays=monthIdx===11;
+      payGrid[ticker][label] = pays ? perPayment : 0;
     });
-    // MAIN & monthly payers
-    if(h.annDiv>0 && (t==='MAIN'||t==='O')) {
-      monthOrder.forEach(m=>{ payGrid[t][m]=parseFloat((h.shares*h.annDiv/12).toFixed(2)); });
-    }
   });
-  const colTotals=monthOrder.map(m=>tickers.reduce((a,t)=>a+(payGrid[t]?.[m]||0),0));
-  const grid=document.getElementById('payout-grid');
-  grid.innerHTML=`<thead><tr><th>TICKER</th>${monthOrder.map(m=>`<th>${m}</th>`).join('')}</tr></thead>
-  <tbody>${tickers.map(t=>{
-    const row=monthOrder.map(m=>{
-      const amt=payGrid[t]?.[m];
-      return amt?`<td><span class="pay-amt">$${fmt(amt,2)}</span><span class="pay-ex">Ex: TBD</span></td>`:'<td style="color:var(--text3)">—</td>';
+
+  // Render payout grid
+  const colTotals = rotatedLabels.map(m=>tickers.reduce((a,ticker)=>a+(payGrid[ticker]?.[m]||0),0));
+  const grid = document.getElementById('payout-grid');
+  if(!grid) return;
+  grid.innerHTML=`<thead><tr><th>TICKER</th>${rotatedLabels.map(m=>`<th>${m}</th>`).join('')}<th>TOTAL</th></tr></thead>
+  <tbody>${tickers.map(ticker=>{
+    const row=rotatedLabels.map(m=>{
+      const amt=payGrid[ticker]?.[m];
+      return `<td>${amt>0?`<span class="payout-pill">${sym}${fmt(amt,0)}</span>`:'—'}</td>`;
     }).join('');
-    return`<tr><td><span class="pay-ticker" onclick="openDetail('${t}')">${t}</span></td>${row}</tr>`;
-  }).join('')}</tbody>
-  <tfoot><tr><td style="font-weight:800;color:var(--c1d)">TOTAL</td>${colTotals.map(t=>`<td>${t>0?'$'+fmt(t,2):'—'}</td>`).join('')}</tr></tfoot>`;
+    const total=rotatedLabels.reduce((a,m)=>a+(payGrid[ticker]?.[m]||0),0);
+    return `<tr><td><span class="tp" onclick="openDetail('${ticker}')">${ticker}</span></td>${row}<td style="font-weight:700;color:var(--c1d)">${sym}${fmt(total,0)}</td></tr>`;
+  }).join('')}
+  <tr style="background:var(--c1l);font-weight:700;"><td>TOTAL</td>${colTotals.map(v=>`<td>${v>0?sym+fmt(v,0):'—'}</td>`).join('')}<td style="color:var(--c1d)">${sym}${fmt(colTotals.reduce((a,b)=>a+b,0),0)}</td></tr>
+  </tbody>`;
 }
 
 // ═══════════════════════════════════════════════════
@@ -2250,10 +2285,10 @@ function openDetail(ticker) {
   ).join('');
 
   // Summary
-  document.getElementById('sd-summary').innerHTML = `<div class="sc-title">Über ${s.ticker} — ${s.name}</div>
-    <p style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">${s.name} ist ein Unternehmen im Bereich ${s.sector} ${fwd>0?`mit einem Forward Dividend Yield von ${fmt(fwd,2)}% und ${s.years||0} aufeinanderfolgenden Dividendenerhöhungen`:'das aktuell keine Dividende zahlt'}.</p>
-    <div style="background:#f0fdf9;border:1px solid #6ee7b7;border-radius:var(--rsm);padding:12px 14px;font-size:12px;color:var(--c1d);">
-      <strong>Note: Detailed company data is loaded via the Finnhub API.
+  document.getElementById('sd-summary').innerHTML = `<div class="sc-title">About ${s.ticker} — ${s.name}</div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:16px;">${s.name} is a company in the ${s.sector} sector ${fwd>0?`with a forward dividend yield of ${fmt(fwd,2)}% and ${s.years||0} consecutive years of dividend payments`:'that currently does not pay a dividend'}.</p>
+    <div style="background:var(--c1l);border:1px solid #6ee7b7;border-radius:var(--rsm);padding:12px 14px;font-size:12px;color:var(--c1d);">
+      📡 Click the <strong>Dividends</strong> tab for full payment history, or <strong>Financials</strong> for key metrics. Live data via Finnhub.
     </div>`;
 
   // Dividends tab
@@ -2268,12 +2303,12 @@ function openDetail(ticker) {
     </div>`;
 
   // Competition
-  document.getElementById('comp-table').innerHTML = `<tr><td colspan="4" style="padding:14px;color:var(--text3);font-size:13px;">Competition-Daten werden über FMP API geladen.</td></tr>`;
+  document.getElementById('comp-table').innerHTML = `<tr><td colspan="4" style="padding:14px;color:var(--text3);font-size:13px;">Competition data is loaded via Finnhub API.</td></tr>`;
 
   // Financials
-  document.getElementById('sd-fin').innerHTML = `<div class="sc-title">Finanzkennzahlen</div>
+  document.getElementById('sd-fin').innerHTML = `<div class="sc-title">Key Financials</div>
     <div style="background:#fef9e7;border:1px solid #fcd34d;border-radius:var(--rsm);padding:14px;font-size:13px;color:#92400e;">
-      Echte Kennzahlen (KGV, EPS, Cashflow, Verschuldung) werden über FMP API geladen.
+      Key metrics (P/E, EPS, Cash Flow, Debt) are loaded via Finnhub API.
     </div>`;
 
   showTab('stock-detail');
@@ -2647,7 +2682,7 @@ async function openDetailLive(ticker) {
       <div style="margin-bottom:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
         <div class="sdh-metric"><div class="sdh-m-label">Forward Yield</div><div class="sdh-m-val green">${fwdYield>0?fmt(fwdYield,2)+'%':'—'}</div></div>
         <div class="sdh-metric"><div class="sdh-m-label">Letzte Zahlung</div><div class="sdh-m-val">$${fmt(divData[0]?.dividend||0,4)}</div></div>
-        <div class="sdh-metric"><div class="sdh-m-label">Zahlungen/Jahr</div><div class="sdh-m-val">${divData.length>=12?'Monatlich':divData.length>=4?'Quartal':'Jährl.'}</div></div>
+        <div class="sdh-metric"><div class="sdh-m-label">Payments/Year</div><div class="sdh-m-val">${divData.length>=12?'Monthly':divData.length>=4?'Quarterly':'Annual'}</div></div>
       </div>
       <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Letzte Zahlungen</div>
       ${rows}`;
