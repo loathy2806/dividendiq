@@ -454,7 +454,18 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
   .lp-stat-item{border-right:none!important;border-bottom:1px solid rgba(255,255,255,.06);padding:16px!important;}
 }
 
-/* Mobile bottom nav */
+.faq-item{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;overflow:hidden;margin-bottom:8px;}
+.faq-q{padding:18px 20px;font-size:15px;font-weight:700;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:background .2s;}
+.faq-q:hover{background:rgba(255,255,255,.05);}
+.faq-a{padding:0 20px;max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s;font-size:14px;color:rgba(255,255,255,.6);line-height:1.7;}
+.faq-item.open .faq-a{max-height:200px;padding:0 20px 18px;}
+.faq-item.open .faq-arrow{transform:rotate(180deg);}
+.faq-arrow{transition:transform .3s;font-size:11px;color:rgba(255,255,255,.4);}
+
+/* How it works mobile */
+@media(max-width:768px){
+  #faq-list .faq-item{margin-bottom:6px;}
+}
 .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:200;padding:6px 0;justify-content:space-around;}
 .mob-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 12px;border:none;background:none;cursor:pointer;color:var(--text3);font-size:10px;font-weight:600;}
 .mob-btn.active{color:var(--c1);}
@@ -478,7 +489,9 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
     <div class="lp-logo">Dividend<span>IQ</span></div>
     <div class="lp-nav-links">
       <a href="#features" class="lp-nav-link">Features</a>
+      <a href="#howitworks" class="lp-nav-link">How it Works</a>
       <a href="#pricing" class="lp-nav-link">Pricing</a>
+      <a href="#faq" class="lp-nav-link">FAQ</a>
       <a href="#" class="lp-nav-link" onclick="showLandingAuth('login');return false;">Sign In</a>
     </div>
     <button class="lp-nav-cta" onclick="showLandingAuth('register')">Start for Free →</button>
@@ -656,6 +669,153 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
     </div>
   </section>
 
+  <!-- HOW IT WORKS -->
+  <section id="howitworks" style="position:relative;z-index:1;max-width:900px;margin:0 auto 100px;padding:0 24px;">
+    <div class="lp-section-label">Simple as 1-2-3</div>
+    <h2 class="lp-section-title">Start tracking in minutes</h2>
+    <p class="lp-section-sub">No spreadsheets. No manual updates. Just add your stocks and let DividendIQ do the work.</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;position:relative;">
+      <!-- Connecting line -->
+      <div style="position:absolute;top:36px;left:calc(16.5% + 16px);right:calc(16.5% + 16px);height:2px;background:linear-gradient(90deg,#00c48c,#4f8ef7);opacity:.3;display:none;"></div>
+      <div style="text-align:center;padding:32px 20px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;">
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,#00c48c,#00a876);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:24px;">1</div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:10px;">Add your stocks</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.7;">Search by ticker or name. Enter your shares and purchase price. Takes 30 seconds per stock.</div>
+      </div>
+      <div style="text-align:center;padding:32px 20px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;">
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,#4f8ef7,#7c3aed);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:24px;">2</div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:10px;">See your income</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.7;">Instantly see your total dividend income, yield, and a month-by-month payment calendar.</div>
+      </div>
+      <div style="text-align:center;padding:32px 20px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;">
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:24px;">3</div>
+        <div style="font-size:17px;font-weight:800;margin-bottom:10px;">Grow your wealth</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.7;">Use the forecast tool to project your income 5, 10, or 25 years into the future. Watch it compound.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOCIAL PROOF / TESTIMONIALS -->
+  <section style="position:relative;z-index:1;max-width:1000px;margin:0 auto 100px;padding:0 24px;">
+    <div class="lp-section-label">Trusted by investors</div>
+    <h2 class="lp-section-title">What our users say</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px;">
+        <div style="font-size:20px;color:#f59e0b;margin-bottom:12px;">★★★★★</div>
+        <div style="font-size:14px;color:rgba(255,255,255,.8);line-height:1.7;margin-bottom:16px;">"Finally a dividend tracker that actually shows me when each stock pays. The calendar view is exactly what I was looking for."</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#00c48c,#4f8ef7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">M</div>
+          <div><div style="font-size:13px;font-weight:700;">Michael T.</div><div style="font-size:11px;color:rgba(255,255,255,.4);">Dividend investor, 12 years</div></div>
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px;">
+        <div style="font-size:20px;color:#f59e0b;margin-bottom:12px;">★★★★★</div>
+        <div style="font-size:14px;color:rgba(255,255,255,.8);line-height:1.7;margin-bottom:16px;">"The 25-year forecast blew my mind. I put in my current portfolio and saw I'd be making $4,200/month in dividends by 2045."</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#7c3aed,#4f8ef7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">S</div>
+          <div><div style="font-size:13px;font-weight:700;">Sarah K.</div><div style="font-size:11px;color:rgba(255,255,255,.4);">FIRE community member</div></div>
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px;">
+        <div style="font-size:20px;color:#f59e0b;margin-bottom:12px;">★★★★★</div>
+        <div style="font-size:14px;color:rgba(255,255,255,.8);line-height:1.7;margin-bottom:16px;">"I used to track everything in Excel. DividendIQ replaced my entire spreadsheet and does it better. The real-time prices are a game changer."</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;">R</div>
+          <div><div style="font-size:13px;font-weight:700;">Robert A.</div><div style="font-size:11px;color:rgba(255,255,255,.4);">Retired, portfolio $280k</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.25);">* Testimonials are illustrative examples of typical user experiences.</div>
+  </section>
+
+  <!-- COMPARISON TABLE -->
+  <section style="position:relative;z-index:1;max-width:800px;margin:0 auto 100px;padding:0 24px;">
+    <div class="lp-section-label">Why DividendIQ?</div>
+    <h2 class="lp-section-title">vs. the alternatives</h2>
+    <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:rgba(0,196,140,.08);">
+            <th style="padding:14px 16px;text-align:left;font-weight:700;color:rgba(255,255,255,.6);">Feature</th>
+            <th style="padding:14px 16px;text-align:center;color:#00c48c;font-weight:800;">DividendIQ</th>
+            <th style="padding:14px 16px;text-align:center;color:rgba(255,255,255,.4);">Excel</th>
+            <th style="padding:14px 16px;text-align:center;color:rgba(255,255,255,.4);">Yahoo Finance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top:1px solid rgba(255,255,255,.06);">
+            <td style="padding:12px 16px;color:rgba(255,255,255,.7);">Real-time prices</td>
+            <td style="padding:12px 16px;text-align:center;color:#00c48c;">✓</td>
+            <td style="padding:12px 16px;text-align:center;color:rgba(255,255,255,.25);">Manual</td>
+            <td style="padding:12px 16px;text-align:center;color:#00c48c;">✓</td>
+          </tr>
+          <tr style="border-top:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);">
+            <td style="padding:12px 16px;color:rgba(255,255,255,.7);">Dividend calendar</td>
+            <td style="padding:12px 16px;text-align:center;color:#00c48c;">✓</td>
+            <td style="padding:12px 16px;text-align:center;color:rgba(255,255,255,.25);">Manual</td>
+            <td style="padding:12px 16px;text-align:center;color:rgba(255,255,255,.25);">Limited</td>
+          </tr>
+          <tr style="border-top:1px solid rgba(255,255,255,.06);">
+            <td style="padding:12px 16px;color:rgba(255,255,255,.7);">25-year income forecast</td>
+            <td style="padding:12px 16px;text-align:center;color:#00c48c;">✓</td>
+            <td style="padding:12px 16px;text-align:center;color:rgba(255,255,255,.25);">Complex formulas</td>
+            <td style="padding:12px 16px;text-align:center;color:rgba(255,255,255,.25);">✗</td>
+          </tr>
+          <tr style="border-top:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);">
+            <td style="padding:12px 16px;color:rgba(255,255,255,.7);">Portfolio vs S&P 500</td>
+            <td style="padding:12px 16px;text-align:center;color:#00c48c;">✓</td>
+            <td style="padding:12px 16px;text-align:center;color:rgba(255,255,255,.25);">✗</td>
+            <td style="padding:12px 16px;text-align:center;color:rgba(255,255,255,.25);">✗</td>
+          </tr>
+          <tr style="border-top:1px solid rgba(255,255,255,.06);">
+            <td style="padding:12px 16px;color:rgba(255,255,255,.7);">Free to start</td>
+            <td style="padding:12px 16px;text-align:center;color:#00c48c;">✓</td>
+            <td style="padding:12px 16px;text-align:center;color:rgba(255,255,255,.25);">Microsoft 365</td>
+            <td style="padding:12px 16px;text-align:center;color:#00c48c;">✓</td>
+          </tr>
+          <tr style="border-top:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);">
+            <td style="padding:12px 16px;color:rgba(255,255,255,.7);">Dividend Aristocrats filter</td>
+            <td style="padding:12px 16px;text-align:center;color:#00c48c;">✓</td>
+            <td style="padding:12px 16px;text-align:center;color:rgba(255,255,255,.25);">✗</td>
+            <td style="padding:12px 16px;text-align:center;color:rgba(255,255,255,.25);">✗</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" style="position:relative;z-index:1;max-width:700px;margin:0 auto 100px;padding:0 24px;">
+    <div class="lp-section-label">Questions?</div>
+    <h2 class="lp-section-title">Frequently Asked</h2>
+    <div style="display:flex;flex-direction:column;gap:2px;" id="faq-list">
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Is my portfolio data safe? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">Yes. Your data is stored securely in Supabase (SOC 2 certified infrastructure). We never sell your data and you can delete your account and all data at any time from your profile settings.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Which stocks are supported? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">All US-listed stocks and ETFs on NYSE and NASDAQ — thousands of tickers. Simply search by ticker symbol (e.g. KO, JNJ, AAPL) or company name.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Can I cancel my Pro subscription anytime? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">Absolutely. Cancel anytime from your profile — no questions asked. You keep Pro access until the end of your billing period.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">How accurate is the dividend data? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">Real-time prices and dividend data come from Finnhub, a professional financial data provider. Forecasts are estimates based on historical dividend growth rates.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Is there a mobile app? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">DividendIQ is a Progressive Web App (PWA) — on mobile, tap "Add to Home Screen" in your browser to install it like a native app. It works on iOS and Android.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">What's the difference between Free and Pro? <span class="faq-arrow">▼</span></div>
+        <div class="faq-a">Free gives you up to 10 positions, real-time prices, dividend calendar, and portfolio dashboard. Pro unlocks unlimited positions, full research access, price charts, dividend history, 25-year forecasts, watchlist, benchmark comparison, and no ads.</div>
+      </div>
+    </div>
+  </section>
+
   <!-- BOTTOM CTA -->
   <div class="lp-bottom-cta">
     <h2>Ready to grow your<br><span style="background:linear-gradient(135deg,#00c48c,#4f8ef7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">passive income?</span></h2>
@@ -674,7 +834,7 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
         <a href="/datenschutz.html" class="lp-footer-link">Privacy</a>
         <a href="mailto:support@dividendiq.app" class="lp-footer-link">Support</a>
       </div>
-      <div class="lp-footer-copy">© 2026 DividendIQ · Rob Stu · Vienna, Austria</div>
+      <div class="lp-footer-copy">© 2026 DividendIQ </div>
     </div>
   </footer>
 </div>
@@ -700,14 +860,14 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
       <button class="auth-btn" style="background:#fff;color:var(--text);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;gap:8px;" onclick="demoLogin()">
         <span>🎯</span> Demo ansehen (ohne Account)
       </button>
-      <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:10px;">Demo-Daten werden nicht gespeichert — <a href="#" style="color:var(--c1d)" onclick="switchAuthTab('register',document.querySelector('.auth-tab:last-child'));return false;">Jetzt registrieren</a></div>
+      <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:10px;">Demo data is not saved — <a href="#" style="color:var(--c1d)" onclick="switchAuthTab('register',document.querySelector('.auth-tab:last-child'));return false;">Register now</a></div>
     </div>
 
     <!-- REGISTER -->
     <div id="form-register" class="hidden">
       <div class="form-group"><label class="form-label">Name</label><input class="form-input" type="text" id="reg-name" placeholder="Dein Name"></div>
       <div class="form-group"><label class="form-label">E-Mail</label><input class="form-input" type="email" id="reg-email" placeholder="deine@email.com"></div>
-      <div class="form-group" style="margin-bottom:18px;"><label class="form-label">Passwort</label><input class="form-input" type="password" id="reg-pw" placeholder="Min. 8 Zeichen"></div>
+      <div class="form-group" style="margin-bottom:18px;"><label class="form-label">Password</label><input class="form-input" type="password" id="reg-pw" placeholder="Min. 8 characters"></div>
       <button class="auth-btn" onclick="doRegister()">Create Account</button>
     </div>
 
@@ -721,7 +881,7 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
       </div>
     </div>
 
-    <div class="auth-footer">By registering you agree to our <a href="/agb.html" style="color:var(--c1d)">AGB</a> and our <a href="/datenschutz.html" style="color:var(--c1d)">Datenschutzerklärung</a> .</div>
+    <div class="auth-footer">By registering you agree to our <a href="/agb.html" style="color:var(--c1d)">Terms</a> and our <a href="/datenschutz.html" style="color:var(--c1d)">Privacy Policy</a>.</div>
   </div>
 </div>
 
@@ -932,8 +1092,8 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
           <div class="pc-title">Support & Legal</div>
           <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
             <a href="mailto:support@dividendiq.app" style="color:var(--c1d);font-weight:600;text-decoration:none;">📧 support@dividendiq.app</a>
-            <a href="/agb.html" target="_blank" style="color:var(--text2);text-decoration:none;">📄 Allgemeine Geschäftsbedingungen</a>
-            <a href="/datenschutz.html" target="_blank" style="color:var(--text2);text-decoration:none;">🔒 Datenschutzerklärung</a>
+            <a href="/agb.html" target="_blank" style="color:var(--text2);text-decoration:none;">📄 Terms of Service</a>
+            <a href="/datenschutz.html" target="_blank" style="color:var(--text2);text-decoration:none;">🔒 Privacy Policy</a>
           </div>
         </div>
         <div class="pc">
@@ -991,7 +1151,7 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
 
     <div class="modal-btns">
       <button class="cancel-btn" onclick="closeModals()">Cancel</button>
-      <button class="primary-btn" id="add-stock-confirm-btn" onclick="confirmAddStock()" disabled>Hinzufügen</button>
+      <button class="primary-btn" id="add-stock-confirm-btn" onclick="confirmAddStock()" disabled>Add Stock</button>
     </div>
   </div>
 </div>
@@ -1000,14 +1160,14 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
 <div class="modal-overlay" id="modal-upgrade" onclick="if(event.target===this)closeModals()">
   <div class="modal">
     <div class="modal-title">✦ DividendIQ Pro</div>
-    <p class="modal-sub" style="font-size:13px;color:var(--text2);margin-bottom:16px;">Investiere smarter — alle Features ohne Einschränkungen.</p>
+    <p class="modal-sub" style="font-size:13px;color:var(--text2);margin-bottom:16px;">Invest smarter — all features without limits.</p>
     <div style="display:flex;flex-direction:column;gap:9px;font-size:13px;margin-bottom:6px;">
       <span>✅ Unlimited Positions</span>
-      <span>✅ Vollständiger Research-Zugang</span>
-      <span>✅ Price Charts & Dividend History</span>
-      <span>✅ Erweiterte Prognosen (bis 25 Jahre)</span>
-      <span>✅ Keine Werbung</span>
-      <span id="upgrade-feat-6">✅ Priority Support</span>
+      <span>✅ Full Research Access</span>
+      <span>✅ Price Charts &amp; Dividend History</span>
+      <span>✅ Advanced Forecasts (up to 25 years)</span>
+      <span>✅ No Ads</span>
+      <span>✅ Watchlist &amp; Benchmark</span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0;">
       <div style="background:#f0fdf9;border:2px solid #6ee7b7;border-radius:10px;padding:14px;text-align:center;cursor:pointer;" onclick="startCheckout('monthly')">
@@ -1224,11 +1384,11 @@ function demoLogin() {
   hideLanding();
   document.getElementById('auth-screen').style.display = 'none';
   const demoHoldings = [
-    {ticker:'KO',  name:'Coca-Cola Co.',       shares:50, price:75.74, cost:68.00, dayChg:+0.74, yield:2.72, sector:'Defensiv',    annDiv:2.06, dg5:4.1,  payout:72, years:62, ar:true, hy:false,gr:true, re:false},
-    {ticker:'JNJ', name:'Johnson & Johnson',   shares:20, price:158.60,cost:148.00,dayChg:-0.52, yield:3.18, sector:'Healthcare',   annDiv:5.04, dg5:6.2,  payout:44, years:61, ar:true, hy:false,gr:true, re:false},
-    {ticker:'MO',  name:'Altria Group Inc.',   shares:80, price:47.25, cost:42.00, dayChg:-0.84, yield:8.51, sector:'Defensiv',    annDiv:4.02, dg5:4.2,  payout:78, years:54, ar:true, hy:true, gr:false,re:false},
-    {ticker:'MSFT',name:'Microsoft Corp.',     shares:10, price:422.30,cost:380.00,dayChg:+0.66, yield:0.71, sector:'Technologie', annDiv:3.32, dg5:10.4, payout:24, years:21, ar:false,hy:false,gr:true, re:false},
-    {ticker:'MAIN',name:'Main Street Capital', shares:40, price:52.40, cost:44.80, dayChg:-0.38, yield:7.48, sector:'BDC',         annDiv:3.92, dg5:2.1,  payout:85, years:12, ar:false,hy:true, gr:false,re:true },
+    {ticker:'KO',  name:'Coca-Cola Co.',       shares:50, price:75.74, cost:68.00, dayChg:+0.74, yield:2.72, sector:'Consumer Staples', annDiv:2.06, dg5:4.1,  payout:72, years:62, ar:true, hy:false,gr:true, re:false, frequency:4, paymentMonths:[0,3,6,9]},   // Jan/Apr/Jul/Oct
+    {ticker:'JNJ', name:'Johnson & Johnson',   shares:20, price:158.60,cost:148.00,dayChg:-0.52, yield:3.18, sector:'Healthcare',        annDiv:5.04, dg5:6.2,  payout:44, years:61, ar:true, hy:false,gr:true, re:false, frequency:4, paymentMonths:[2,5,8,11]},  // Mar/Jun/Sep/Dec
+    {ticker:'MO',  name:'Altria Group Inc.',   shares:80, price:47.25, cost:42.00, dayChg:-0.84, yield:8.51, sector:'Consumer Staples',  annDiv:4.02, dg5:4.2,  payout:78, years:54, ar:true, hy:true, gr:false,re:false, frequency:4, paymentMonths:[0,3,6,9]},   // Jan/Apr/Jul/Oct
+    {ticker:'MSFT',name:'Microsoft Corp.',     shares:10, price:422.30,cost:380.00,dayChg:+0.66, yield:0.71, sector:'Technology',        annDiv:3.32, dg5:10.4, payout:24, years:21, ar:false,hy:false,gr:true, re:false, frequency:4, paymentMonths:[2,5,8,11]},  // Mar/Jun/Sep/Dec
+    {ticker:'MAIN',name:'Main Street Capital', shares:40, price:52.40, cost:44.80, dayChg:-0.38, yield:7.48, sector:'BDC',               annDiv:3.92, dg5:2.1,  payout:85, years:12, ar:false,hy:true, gr:false,re:true,  frequency:12,paymentMonths:[0,1,2,3,4,5,6,7,8,9,10,11]},
   ];
   loginAs({ name: 'Demo User', email: 'demo@dividendiq.com', plan: 'free' }, demoHoldings);
 }
@@ -1278,7 +1438,15 @@ async function saveProfile() {
   if(authToken) {
     await authFetch('update_profile', { name: currentUser.name, plan: currentUser.plan });
   }
-  alert('Gespeichert ✓');
+  showToast(currentLang==='de'?'Gespeichert ✓':currentLang==='es'?'Guardado ✓':currentLang==='fr'?'Enregistré ✓':'Saved ✓', 'success');
+  setTimeout(hideToast, 2000);
+}
+
+function toggleFaq(el) {
+  const item = el.closest('.faq-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+  if(!isOpen) item.classList.add('open');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1613,23 +1781,38 @@ async function confirmAddStock() {
       setTimeout(() => openModal('upgrade'), 300);
       return;
     }
+    // Fetch dividend frequency from Finnhub
+    let frequency = 4;
+    let paymentMonths = [2,5,8,11]; // default quarterly Mar/Jun/Sep/Dec
+    try {
+      const divData = await fmpFetch('dividends', {symbol: selectedStock.ticker});
+      if(Array.isArray(divData) && divData.length > 0) {
+        frequency      = divData[0].frequency      || 4;
+        paymentMonths  = divData[0].paymentMonths  || paymentMonths;
+      }
+    } catch(e) {
+      console.log('Frequency fetch skipped:', e.message);
+    }
+
     HOLDINGS.push({
-      ticker:    selectedStock.ticker,
-      name:      selectedStock.name,
+      ticker:        selectedStock.ticker,
+      name:          selectedStock.name,
       shares,
-      price:     selectedStock.price,
+      price:         selectedStock.price,
       cost,
-      dayChg:    0,
-      yield:     selectedStock.yield,
-      sector:    selectedStock.sector,
-      annDiv:    selectedStock.annDivPS,
-      dg5:       selectedStock.dg5,
-      payout:    selectedStock.payout,
-      years:     selectedStock.years,
-      ar:        selectedStock.ar,
-      hy:        selectedStock.hy,
-      gr:        selectedStock.gr,
-      re:        selectedStock.re,
+      dayChg:        0,
+      yield:         selectedStock.yield,
+      sector:        selectedStock.sector,
+      annDiv:        selectedStock.annDivPS,
+      dg5:           selectedStock.dg5,
+      payout:        selectedStock.payout,
+      years:         selectedStock.years,
+      ar:            selectedStock.ar,
+      hy:            selectedStock.hy,
+      gr:            selectedStock.gr,
+      re:            selectedStock.re,
+      frequency,
+      paymentMonths,
     });
   }
   DB.save();
@@ -1930,32 +2113,33 @@ function renderDividendsTab(){
   // Correct dividend frequency per holding
   const annualDiv = HOLDINGS.reduce((a,h)=>a+h.shares*h.annDiv,0);
   const sym = CURRENCY_SYMBOL[currentCurrency]||'$';
-
-  // Build monthly estimates based on actual frequency
-  const monthlyEst = Array(12).fill(0);
-  HOLDINGS.forEach(h=>{
-    if(h.annDiv<=0) return;
-    const freq = h.frequency || 4; // default quarterly
-    const perPayment = (h.shares*h.annDiv)/freq;
-    if(freq===12) {
-      // Monthly — spread evenly
-      for(let i=0;i<12;i++) monthlyEst[i]+=perPayment;
-    } else if(freq===4) {
-      // Quarterly — Mar/Jun/Sep/Dec pattern
-      [2,5,8,11].forEach(m=>monthlyEst[m]+=perPayment);
-    } else if(freq===2) {
-      // Semi-annual
-      [2,8].forEach(m=>monthlyEst[m]+=perPayment);
-    } else {
-      // Annual
-      monthlyEst[11]+=perPayment;
-    }
-  });
-
   const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const now = new Date();
   const startMonth = now.getMonth();
   const startYear  = now.getFullYear();
+
+  // Build monthly estimates using real payment months where available
+  const monthlyEst = Array(12).fill(0);
+  HOLDINGS.forEach(h=>{
+    if(h.annDiv<=0) return;
+    const freq = h.frequency || 4;
+    const perPayment = (h.shares*h.annDiv)/freq;
+
+    // Use real payment months if stored, else use defaults
+    let pMonths = (h.paymentMonths && h.paymentMonths.length) ? h.paymentMonths : null;
+    if(!pMonths) {
+      if(freq===12)     pMonths = [0,1,2,3,4,5,6,7,8,9,10,11];
+      else if(freq===4) pMonths = [2,5,8,11];
+      else if(freq===2) pMonths = [2,8];
+      else              pMonths = [11];
+    }
+
+    // Map to next 12 months window
+    for(let i=0;i<12;i++){
+      const monthIdx = (startMonth+i)%12;
+      if(pMonths.includes(monthIdx)) monthlyEst[i]+=perPayment;
+    }
+  });
 
   // Rotate to start from current month
   const rotatedData = Array(12).fill(0).map((_,i)=>Math.round(monthlyEst[(startMonth+i)%12]));
@@ -1997,14 +2181,16 @@ function renderDividendsTab(){
     payGrid[ticker]={};
     const freq = h.frequency || 4;
     const perPayment = (h.shares*h.annDiv)/freq;
+    let pMonths = (h.paymentMonths && h.paymentMonths.length) ? h.paymentMonths : null;
+    if(!pMonths) {
+      if(freq===12)     pMonths = [0,1,2,3,4,5,6,7,8,9,10,11];
+      else if(freq===4) pMonths = [2,5,8,11];
+      else if(freq===2) pMonths = [2,8];
+      else              pMonths = [11];
+    }
     rotatedLabels.forEach((label,i)=>{
       const monthIdx = (startMonth+i)%12;
-      let pays = false;
-      if(freq===12) pays=true;
-      else if(freq===4) pays=[2,5,8,11].includes(monthIdx);
-      else if(freq===2) pays=[2,8].includes(monthIdx);
-      else pays=monthIdx===11;
-      payGrid[ticker][label] = pays ? perPayment : 0;
+      payGrid[ticker][label] = pMonths.includes(monthIdx) ? perPayment : 0;
     });
   });
 
@@ -2813,8 +2999,50 @@ function showTab(t){
     if(t==='dividends')       renderDividendsTab();
     if(t==='forecast')        renderForecastTab();
     if(t==='research')        renderResearch();
-    if(t==='watchlist')       { if(!isPro()) { requirePro('research'); return; } renderWatchlist(); }
-    if(t==='benchmark')       { if(!isPro()) { requirePro('research'); return; } renderBenchmark(); }
+    if(t==='watchlist') {
+      if(!isPro()) {
+        document.getElementById('tab-watchlist').innerHTML = `
+          <div class="sc" style="text-align:center;padding:48px 24px;">
+            <div style="font-size:48px;margin-bottom:16px;">👁</div>
+            <div style="font-size:22px;font-weight:900;margin-bottom:10px;">Watchlist — Track Without Buying</div>
+            <div style="font-size:14px;color:var(--text2);max-width:420px;margin:0 auto 24px;line-height:1.7;">
+              Add stocks to your watchlist to monitor their price, yield, and performance — without adding them to your portfolio. Perfect for tracking stocks you're considering buying.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;max-width:320px;margin:0 auto 28px;text-align:left;">
+              <div>✅ Monitor unlimited stocks</div>
+              <div>✅ Track price & dividend yield</div>
+              <div>✅ One-click add to portfolio</div>
+              <div>✅ Live price refresh</div>
+            </div>
+            <button class="save-btn" onclick="openModal('upgrade')" style="background:linear-gradient(135deg,#00c48c,#4f8ef7);padding:14px 36px;font-size:15px;">✦ Unlock Watchlist — from €9.99/month</button>
+            <div style="font-size:12px;color:var(--text3);margin-top:12px;">Cancel anytime · 14-day money-back guarantee</div>
+          </div>`;
+        return;
+      }
+      renderWatchlist();
+    }
+    if(t==='benchmark') {
+      if(!isPro()) {
+        document.getElementById('tab-benchmark').innerHTML = `
+          <div class="sc" style="text-align:center;padding:48px 24px;">
+            <div style="font-size:48px;margin-bottom:16px;">📈</div>
+            <div style="font-size:22px;font-weight:900;margin-bottom:10px;">Portfolio vs S&P 500</div>
+            <div style="font-size:14px;color:var(--text2);max-width:420px;margin:0 auto 24px;line-height:1.7;">
+              See how your dividend portfolio compares to the S&P 500. Are you beating the market on income? Find out with a detailed side-by-side comparison.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;max-width:320px;margin:0 auto 28px;text-align:left;">
+              <div>✅ Dividend yield vs S&P 500</div>
+              <div>✅ Annual income advantage in $</div>
+              <div>✅ Gain/Loss comparison chart</div>
+              <div>✅ Detailed metrics table</div>
+            </div>
+            <button class="save-btn" onclick="openModal('upgrade')" style="background:linear-gradient(135deg,#00c48c,#4f8ef7);padding:14px 36px;font-size:15px;">✦ Unlock Benchmark — from €9.99/month</button>
+            <div style="font-size:12px;color:var(--text3);margin-top:12px;">Cancel anytime · 14-day money-back guarantee</div>
+          </div>`;
+        return;
+      }
+      renderBenchmark();
+    }
   }
   // Always re-render dynamic tabs when portfolio changes
   if(t==='diversification') renderDiversification();
