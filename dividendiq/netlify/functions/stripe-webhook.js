@@ -87,7 +87,7 @@ exports.handler = async (event) => {
 
       if (!priceId || !email) {
         return { statusCode: 400, headers: CORS,
-          body: JSON.stringify({ error: 'priceId und email erforderlich' }) };
+          body: JSON.stringify({ error: 'priceId and email required' }) };
       }
 
       const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -102,8 +102,8 @@ exports.handler = async (event) => {
           'customer_email': email,
           'line_items[0][price]': priceId,
           'line_items[0][quantity]': '1',
-          'success_url': successUrl || 'https://dividendiq-app.netlify.app?upgraded=true',
-          'cancel_url':  cancelUrl  || 'https://dividendiq-app.netlify.app',
+          'success_url': successUrl || 'https://dividendiq.org?upgraded=true',
+          'cancel_url':  cancelUrl  || 'https://dividendiq.org',
           'metadata[user_id]': userId || '',
           'metadata[email]': email,
           'allow_promotion_codes': 'true',
@@ -113,7 +113,7 @@ exports.handler = async (event) => {
       const session = await res.json();
       if (!res.ok) {
         return { statusCode: 500, headers: CORS,
-          body: JSON.stringify({ error: session.error?.message || 'Checkout fehlgeschlagen' }) };
+          body: JSON.stringify({ error: session.error?.message || 'Checkout failed' }) };
       }
       return { statusCode: 200, headers: CORS,
         body: JSON.stringify({ url: session.url }) };
