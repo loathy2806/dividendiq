@@ -3255,18 +3255,58 @@ function detectColumns(headers) {
   const map = {};
 
   // Ticker/Symbol
-  const tickerCols = ['ticker','symbol','isin','wkn','stock','name','title','instrument'];
+  const tickerCols = ['ticker','symbol','isin','wkn','stock','instrument'];
   map.ticker = headers.find(h => tickerCols.some(t => h.includes(t)));
+  // fallback — first column often has ticker
+  if(!map.ticker) map.ticker = headers[0];
 
   // Shares/Quantity
-  const sharesCols = ['shares','quantity','qty','anzahl','stück','units','menge','amount','position'];
+  const sharesCols = ['shares','quantity','qty','anzahl','stück','units','menge','position'];
   map.shares = headers.find(h => sharesCols.some(t => h.includes(t)));
 
-  // Cost/Price
-  const costCols = ['cost','price','avg','average','kurs','einstieg','kaufpreis','purchase','paid','buyprice','avg cost','average cost'];
-  map.cost = headers.find(h => costCols.some(t => h.includes(t)));
+  // Cost/Price — prioritize AverageCost over Price
+  const costCols = ['averagecost','average cost','avg cost','avgcost','cost','einstieg','kaufpreis','purchase','paid','buyprice'];
+  map.cost = headers.find(h => costCols.some(t => h.replace(/\s/g,'').toLowerCase().includes(t.replace(/\s/g,''))));
+  // fallback to price if no cost column
+  if(!map.cost) {
+    const priceCols = ['price','kurs','value'];
+    map.cost = headers.find(h => priceCols.some(t => h.includes(t)));
+  }
 
   return map;
+}
+
+function cleanNumber(val) {
+  if(!val) return 0;
+  // Remove $, €, £, %, commas, spaces, +, and handle negative
+  const negative = String(val).includes('-');
+  const num = parseFloat(String(val).replace(/[$€£%,\s+]/g,'').replace(',','.')) || 0;
+  return negative ? -Math.abs(num) : num;
+}
+
+function extractTicker(raw) {
+  if(!raw) return '';
+  // Handle "ABBV                         Abbvie Inc" format
+  // Take everything before the first space sequence of 3+ spaces or the first word
+  const cleaned = raw.trim().replace(/['"]/g,'');
+  // If format is "TICKER    Company Name", extract ticker (first word)
+  const parts = cleaned.split(/\s{2,}/);
+  if(parts.length > 1) {
+    return parts[0].trim().toUpperCase().replace(/[^A-Z0-9.]/g,'');
+  }
+  // If format is "Company Name (TICKER)", extract from parens
+  const parenMatch = cleaned.match(/\(([A-Z]{1,5})\)/);
+  if(parenMatch) return parenMatch[1];
+  // Otherwise take first word
+  return cleaned.split(/\s/)[0].toUpperCase().replace(/[^A-Z0-9.]/g,'').slice(0,10);
+}
+
+function extractName(raw) {
+  if(!raw) return '';
+  const cleaned = raw.trim().replace(/['"]/g,'');
+  const parts = cleaned.split(/\s{2,}/);
+  if(parts.length > 1) return parts[1].trim();
+  return cleaned;
 }
 
 function showImportPreview(rows) {
@@ -3282,20 +3322,16 @@ function showImportPreview(rows) {
 
   // Try to map each row
   const mapped = rows.map(row => {
-    const tickerRaw = colMap.ticker ? row[colMap.ticker] : '';
+    const tickerRaw = colMap.ticker ? row[colMap.ticker] : Object.values(row)[0] || '';
     const sharesRaw = colMap.shares ? row[colMap.shares] : '';
     const costRaw   = colMap.cost   ? row[colMap.cost]   : '';
 
-    // Clean ticker — extract uppercase letters (e.g. "Apple Inc (AAPL)" → "AAPL")
-    let ticker = tickerRaw.toUpperCase().trim();
-    const tickerMatch = ticker.match(/\(([A-Z]{1,5})\)/);
-    if(tickerMatch) ticker = tickerMatch[1];
-    ticker = ticker.replace(/[^A-Z0-9.]/g,'').slice(0,10);
+    const ticker = extractTicker(tickerRaw);
+    const name   = extractName(tickerRaw);
+    const shares = Math.abs(cleanNumber(sharesRaw));
+    const cost   = Math.abs(cleanNumber(costRaw));
 
-    const shares = parseFloat(String(sharesRaw).replace(',','.')) || 0;
-    const cost   = parseFloat(String(costRaw).replace(',','.'))   || 0;
-
-    return { ticker, shares, cost, valid: ticker.length >= 1 && shares > 0 };
+    return { ticker, name, shares, cost, valid: ticker.length >= 1 && shares > 0 };
   }).filter(r => r.ticker && r.shares > 0);
 
   if(!mapped.length) {
@@ -3380,7 +3416,7 @@ async function confirmImport() {
 
       HOLDINGS.push({
         ticker:    row.ticker,
-        name:      data?.name || data?.companyName || row.ticker,
+        name:      data?.name || data?.companyName || row.name || row.ticker,
         shares:    row.shares,
         price:     livePrice,
         cost:      row.cost > 0 ? row.cost : livePrice, // use live price if no cost given
