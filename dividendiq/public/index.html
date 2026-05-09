@@ -942,7 +942,7 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
         <div class="sc-title">
           <span>Positions <span id="position-count" style="font-size:12px;color:var(--text3);font-weight:400"></span></span>
           <div style="display:flex;gap:8px;">
-            <button class="add-btn-sm" style="background:var(--surface);color:var(--c1d);border:1.5px solid var(--c1);" onclick="openModal('import-csv')">📥 Import CSV</button>
+            <button class="add-btn-sm" style="background:var(--surface);color:var(--c1d);border:1.5px solid var(--c1);" onclick="openModal('import-csv')">📥 Upload File</button>
             <button class="add-btn-sm" onclick="openModal('addstock')">+ Add Stock</button>
           </div>
         </div>
@@ -3328,7 +3328,7 @@ function showImportPreview(rows) {
   const missingCost = mapped.filter(r => r.cost === 0).length;
   if(missingCost > 0) {
     warning.style.display = 'block';
-    warning.textContent = `⚠️ ${missingCost} stock(s) have no cost price — you can edit them after import.`;
+    warning.textContent = `ℹ️ ${missingCost} stock(s) have no purchase price in the file — current market price will be used instead. You can edit later.`;
   } else {
     warning.style.display = 'none';
   }
@@ -3365,27 +3365,40 @@ async function confirmImport() {
     try {
       const q = await fmpFetch('quote', {symbol: row.ticker});
       const data = Array.isArray(q) ? q[0] : q;
-      if(!data || !data.price) { skipped++; continue; }
+
+      // Accept if we got any price data
+      const livePrice = data?.price || data?.c || data?.regularMarketPrice || 0;
+      if(!livePrice) {
+        console.log('No price for', row.ticker, data);
+        skipped++;
+        continue;
+      }
+
+      const divYield = data?.dividendYield
+        ? (data.dividendYield > 1 ? data.dividendYield : data.dividendYield * 100)
+        : 0;
 
       HOLDINGS.push({
         ticker:    row.ticker,
-        name:      data.name || row.ticker,
+        name:      data?.name || data?.companyName || row.ticker,
         shares:    row.shares,
-        price:     data.price,
-        cost:      row.cost || data.price,
-        dayChg:    data.changePercentage || 0,
-        yield:     data.dividendYield ? (data.dividendYield > 1 ? data.dividendYield : data.dividendYield * 100) : 0,
-        sector:    data.sector || 'Unknown',
-        annDiv:    data.dividendYield ? (data.price * (data.dividendYield > 1 ? data.dividendYield/100 : data.dividendYield)) : 0,
+        price:     livePrice,
+        cost:      row.cost > 0 ? row.cost : livePrice, // use live price if no cost given
+        dayChg:    data?.changePercentage || data?.dp || 0,
+        yield:     divYield,
+        sector:    data?.sector || data?.exchange || 'Unknown',
+        annDiv:    divYield > 0 ? (livePrice * divYield / 100) : 0,
         dg5:       0,
         payout:    0,
         years:     0,
         ar:false, hy:false, gr:false, re:false,
         frequency: 4,
         paymentMonths: null,
+        date:      new Date().toISOString().slice(0,10),
       });
       added++;
     } catch(e) {
+      console.log('Import error for', row.ticker, e.message);
       skipped++;
     }
   }
@@ -3395,8 +3408,9 @@ async function confirmImport() {
   closeModals();
   Object.keys(inited).forEach(k => delete inited[k]);
   renderDashboard();
+  if(HOLDINGS.length) setTimeout(()=>loadLiveQuotes(), 500);
 
-  showToast(`✓ Imported ${added} stocks${skipped>0?` (${skipped} skipped)`:''}`, 'success');
+  showToast(`✓ Imported ${added} stock${added!==1?'s':''}${skipped>0?` · ${skipped} skipped`:''}`, 'success');
   setTimeout(hideToast, 4000);
 
   btn.textContent = 'Import Stocks';
