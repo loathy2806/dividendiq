@@ -3405,11 +3405,13 @@ async function handleImportFile(file) {
 
   let rows = [];
   if(ext === 'csv') {
-    // Try latin1 first (common for German brokers like Flatex)
-    const bufferLatin1 = await readFileAs(file, 'latin1');
-    const bufferUTF8  = await readFileAs(file, 'utf-8');
-    // Use latin1 if it contains German chars properly
-    const text = bufferLatin1.includes('ü') || bufferLatin1.includes('Ä') ? bufferLatin1 : bufferUTF8;
+    // Read as ArrayBuffer and convert byte-by-byte (handles latin1/ISO-8859-1)
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    let text = '';
+    for(let i = 0; i < uint8.length; i++) {
+      text += String.fromCharCode(uint8[i]);
+    }
     rows = parseCSV(text);
   } else if(ext === 'xlsx' || ext === 'xls') {
     rows = await parseExcel(file);
@@ -3424,29 +3426,6 @@ async function handleImportFile(file) {
   }
 
   showImportPreview(rows);
-}
-
-function readFileAs(file, encoding) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = reject;
-    if(encoding === 'latin1') {
-      // Read as latin1 by using ISO-8859-1
-      const blob = file.slice();
-      const r2 = new FileReader();
-      r2.onload = e => {
-        const arr = new Uint8Array(e.target.result);
-        let str = '';
-        for(let i=0;i<arr.length;i++) str += String.fromCharCode(arr[i]);
-        resolve(str);
-      };
-      r2.onerror = reject;
-      r2.readAsArrayBuffer(blob);
-    } else {
-      reader.readAsText(file, encoding);
-    }
-  });
 }
 
 function parseCSV(text) {
@@ -3612,8 +3591,8 @@ function showImportPreview(rows) {
 
   // Try to map each row
   const mapped = rows.map(row => {
-    const headers = row['_headers'] || Object.keys(row).map(k=>k.toLowerCase());
-    const vals    = row['_vals']    || Object.values(row);
+    const headers = row['_headers'] || [];
+    const vals    = row['_vals']    || [];
 
     // Try ISIN first → lookup ticker
     const isinRaw = colMap.isin ? row[colMap.isin] : '';
@@ -3621,30 +3600,29 @@ function showImportPreview(rows) {
     let ticker    = isinToTicker(isin) || '';
 
     // If no ISIN match, try ticker column
-    if(!ticker && colMap.ticker) {
-      ticker = extractTicker(row[colMap.ticker]);
-    }
+    if(!ticker && colMap.ticker) ticker = extractTicker(row[colMap.ticker]);
 
-    // If still no ticker, try to extract from name column
-    if(!ticker && colMap.name) {
-      const nameVal = row[colMap.name] || '';
-      ticker = extractTicker(nameVal);
-    }
+    // If still no ticker, try name column
+    if(!ticker && colMap.name) ticker = extractTicker(row[colMap.name]);
 
     // Get company name
-    const nameRaw = colMap.name ? row[colMap.name] : '';
-    const name = nameRaw ? nameRaw.trim().replace(/\s+/g,' ').slice(0,40) : ticker;
+    const nameRaw = colMap.name ? (row[colMap.name]||'') : '';
+    const name = nameRaw.trim().replace(/\s+/g,' ').slice(0,40) || ticker;
 
-    // Shares — handle "13	Stk." format (value in one col, unit in next)
-    const sharesRaw = colMap.shares ? row[colMap.shares] : '';
+    // Shares
+    let sharesRaw = colMap.shares ? row[colMap.shares] : '';
+    // Positional fallback: Flatex col 3 = shares
+    if(!sharesRaw && vals[3]) sharesRaw = vals[3];
     const shares = Math.abs(cleanNumber(sharesRaw));
 
-    // Cost — handle European number format (1.234,56 → 1234.56)
-    const costRaw = colMap.cost ? row[colMap.cost] : '';
+    // Cost — Flatex col 8 = Kaufkurs
+    let costRaw = colMap.cost ? row[colMap.cost] : '';
+    // Positional fallback: col 8
+    if(!costRaw && vals[8]) costRaw = vals[8];
     const costCleaned = String(costRaw)
       .replace(/[€$£%\s]/g,'')
-      .replace(/\.(?=\d{3}[,\s])/g,'')  // remove thousands separator
-      .replace(',','.');                   // decimal comma → dot
+      .replace(/\.(?=\d{3},)/g,'')
+      .replace(',','.');
     const cost = Math.abs(parseFloat(costCleaned)) || 0;
 
     return { ticker, name, shares, cost, isin, valid: ticker.length >= 1 && shares > 0 };
