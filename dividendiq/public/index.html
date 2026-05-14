@@ -942,8 +942,8 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
         <div class="sc-title">
           <span>Positions <span id="position-count" style="font-size:12px;color:var(--text3);font-weight:400"></span></span>
           <div style="display:flex;gap:8px;">
-            <button class="add-btn-sm" style="background:var(--surface);color:var(--c1d);border:1.5px solid var(--c1);" onclick="openModal('import-csv')">📥 Upload File</button>
-            <button class="add-btn-sm" onclick="openModal('addstock')">+ Add Stock</button>
+            <button class="add-btn-sm" id="btn-upload-file" style="background:var(--surface);color:var(--c1d);border:1.5px solid var(--c1);" onclick="openModal('import-csv')">📥 Upload File</button>
+            <button class="add-btn-sm" id="btn-add-stock" onclick="openModal('addstock')">+ Add Stock</button>
           </div>
         </div>
         <div id="holdings-wrap"></div>
@@ -1829,12 +1829,16 @@ async function confirmAddStock() {
     }
     // Fetch dividend frequency from Finnhub
     let frequency = 4;
-    let paymentMonths = [2,5,8,11]; // default quarterly Mar/Jun/Sep/Dec
+    let paymentMonths = getPaymentMonths(selectedStock.ticker, 4);
     try {
       const divData = await fmpFetch('dividends', {symbol: selectedStock.ticker});
       if(Array.isArray(divData) && divData.length > 0) {
-        frequency      = divData[0].frequency      || 4;
-        paymentMonths  = divData[0].paymentMonths  || paymentMonths;
+        frequency = divData[0].frequency || 4;
+        if(divData[0].paymentMonths?.length) {
+          paymentMonths = divData[0].paymentMonths;
+        } else {
+          paymentMonths = getPaymentMonths(selectedStock.ticker, frequency);
+        }
       }
     } catch(e) {
       console.log('Frequency fetch skipped:', e.message);
@@ -2050,9 +2054,53 @@ function renderDashboard(){
 // ═══════════════════════════════════════════════════
 // DIVERSIFICATION
 // ═══════════════════════════════════════════════════
-const SECTOR_COLORS={'Defensiv':'#00c48c','Technologie':'#4f8ef7','Healthcare':'#8b5cf6','Energie':'#f59e0b','BDC':'#ec4899','REIT':'#ec4899','Industrie':'#14b8a6','Rüstung':'#14b8a6','Sensitiv':'#f97316','Medien':'#94a3b8','Finanzen':'#06b6d4','Zyklisch':'#8b5cf6','Versorger':'#65a30d'};
+const SECTOR_COLORS={
+  // English sector names
+  'Technology':'#4f8ef7','Healthcare':'#8b5cf6','Consumer Staples':'#00c48c',
+  'Consumer Discretionary':'#f59e0b','Financials':'#06b6d4','Energy':'#f97316',
+  'Industrials':'#14b8a6','Real Estate':'#ec4899','Utilities':'#65a30d',
+  'Materials':'#84cc16','Communication Services':'#a855f7','BDC':'#e11d48',
+  'REIT':'#0891b2','Defense':'#78716c','Unknown':'#94a3b8',
+  // German sector names (legacy)
+  'Defensiv':'#00c48c','Technologie':'#4f8ef7','Energie':'#f97316',
+  'Industrie':'#14b8a6','Rüstung':'#78716c','Sensitiv':'#f59e0b',
+  'Medien':'#a855f7','Finanzen':'#06b6d4','Zyklisch':'#8b5cf6',
+  'Versorger':'#65a30d','Rohstoffe':'#84cc16',
+  // Fallback palette for unknown sectors
+  '_palette':['#00c48c','#4f8ef7','#8b5cf6','#f59e0b','#ec4899','#14b8a6',
+    '#f97316','#06b6d4','#65a30d','#a855f7','#84cc16','#e11d48',
+    '#0891b2','#78716c','#fbbf24','#34d399','#60a5fa','#f87171'],
+};
 let sectorChartInst=null;
 let pcInst=null, dhInst=null, compChartInst=null;
+
+// Known payment months for common dividend stocks
+const KNOWN_PAY_MONTHS = {
+  'KO':[0,3,6,9],'MO':[0,3,6,9],'PM':[0,3,6,9],'T':[1,4,7,10],
+  'JNJ':[2,5,8,11],'MSFT':[2,5,8,11],'SCHD':[2,5,8,11],'HD':[2,5,8,11],
+  'XOM':[2,5,8,11],'CVX':[2,5,8,11],'CAT':[1,4,7,10],'IBM':[2,5,8,11],
+  'PG':[1,4,7,10],'VZ':[1,4,7,10],'ABBV':[1,4,7,10],'MMM':[2,5,8,11],
+  'PEP':[0,3,6,9],'CL':[1,4,7,10],'KMB':[0,3,6,9],'WMT':[0,3,6,9],
+  'AAPL':[1,4,7,10],'GOOG':[2,5,8,11],'AMZN':null,'TSLA':null,
+  'O':[0,1,2,3,4,5,6,7,8,9,10,11],'MAIN':[0,1,2,3,4,5,6,7,8,9,10,11],
+  'STAG':[0,1,2,3,4,5,6,7,8,9,10,11],'AGNC':[0,1,2,3,4,5,6,7,8,9,10,11],
+  'LOW':[1,4,7,10],'TGT':[2,5,8,11],'COST':[1,4,7,10],
+  'ASML':[0,3,6,9],'GILD':[2,5,8,11],'LMT':[2,5,8,11],
+};
+
+function getPaymentMonths(ticker, frequency) {
+  if(KNOWN_PAY_MONTHS[ticker] !== undefined) return KNOWN_PAY_MONTHS[ticker];
+  // Default by frequency
+  if(frequency===12) return [0,1,2,3,4,5,6,7,8,9,10,11];
+  if(frequency===2)  return [2,8];
+  if(frequency===1)  return [11];
+  return [2,5,8,11]; // default quarterly Mar/Jun/Sep/Dec
+}
+  if(SECTOR_COLORS[sector]) return SECTOR_COLORS[sector];
+  // Use palette for unknown sectors
+  const palette = SECTOR_COLORS['_palette'];
+  return palette[index % palette.length];
+}
 
 function renderDiversification(){
   const el = document.getElementById('div-content');
@@ -2080,17 +2128,17 @@ function renderDiversification(){
 
   el.innerHTML = `
     <div class="three-col" style="margin-bottom:18px;">
-      <div class="highlight-card hl-green"><div class="hl-icon">💰</div><div class="hl-label">Höchster Yield</div><div class="hl-val green">${maxYield.ticker} — ${fmt(maxYield.yield,2)}%</div><div class="hl-sub">${maxYield.name}</div></div>
-      <div class="highlight-card hl-blue"><div class="hl-icon">📈</div><div class="hl-label">Strongest Div. Growth</div><div class="hl-val" style="color:#1d4ed8">${maxDg5.ticker} — ${fmt(maxDg5.dg5||0,1)}% (5Y)</div><div class="hl-sub">${maxDg5.name}</div></div>
-      <div class="highlight-card hl-amber"><div class="hl-icon">🏆</div><div class="hl-label">Longest Dividend Series</div><div class="hl-val" style="color:#92400e">${maxYears.ticker} — ${maxYears.years||0} years</div><div class="hl-sub">${maxYears.years>=50?'Dividend King':'Dividend Aristocrat'}</div></div>
-      <div class="highlight-card hl-purple"><div class="hl-icon">⚖️</div><div class="hl-label">Largest Position</div><div class="hl-val" style="color:#6d28d9">${maxWeight.ticker} — ${fmt(weightPct,1)}%</div><div class="hl-sub">${maxWeight.shares} shares · ${fU(maxWeight.shares*maxWeight.price)}</div></div>
-      <div class="highlight-card hl-teal"><div class="hl-icon">📊</div><div class="hl-label">Positions</div><div class="hl-val" style="color:#0f766e">${HOLDINGS.length} stocks</div><div class="hl-sub">in ${sortedSectors.length} sectors</div></div>
-      <div class="highlight-card hl-red"><div class="hl-icon">🛡️</div><div class="hl-label">Annual Income</div><div class="hl-val" style="color:#b91c1c">${fU(HOLDINGS.reduce((a,h)=>a+h.shares*h.annDiv,0))}</div><div class="hl-sub">from dividends</div></div>
+      <div class="highlight-card hl-green"><div class="hl-icon">💰</div><div class="hl-label">${t('highest_yield')||'Highest Yield'}</div><div class="hl-val green">${maxYield.ticker} — ${fmt(maxYield.yield,2)}%</div><div class="hl-sub">${maxYield.name}</div></div>
+      <div class="highlight-card hl-blue"><div class="hl-icon">📈</div><div class="hl-label">${t('strongest_growth')}</div><div class="hl-val" style="color:#1d4ed8">${maxDg5.ticker} — ${fmt(maxDg5.dg5||0,1)}% (5Y)</div><div class="hl-sub">${maxDg5.name}</div></div>
+      <div class="highlight-card hl-amber"><div class="hl-icon">🏆</div><div class="hl-label">${t('longest_series')}</div><div class="hl-val" style="color:#92400e">${maxYears.ticker} — ${maxYears.years||0} ${t('years')}</div><div class="hl-sub">${maxYears.years>=50?'Dividend King':'Dividend Aristocrat'}</div></div>
+      <div class="highlight-card hl-purple"><div class="hl-icon">⚖️</div><div class="hl-label">${t('largest_position')||'Largest Position'}</div><div class="hl-val" style="color:#6d28d9">${maxWeight.ticker} — ${fmt(weightPct,1)}%</div><div class="hl-sub">${maxWeight.shares} ${t('shares')} · ${fU(maxWeight.shares*maxWeight.price)}</div></div>
+      <div class="highlight-card hl-teal"><div class="hl-icon">📊</div><div class="hl-label">${t('positions')}</div><div class="hl-val" style="color:#0f766e">${HOLDINGS.length} ${t('stocks')||'stocks'}</div><div class="hl-sub">in ${sortedSectors.length} ${t('sectors')||'sectors'}</div></div>
+      <div class="highlight-card hl-red"><div class="hl-icon">🛡️</div><div class="hl-label">${t('annual_income')}</div><div class="hl-val" style="color:#b91c1c">${fU(HOLDINGS.reduce((a,h)=>a+h.shares*h.annDiv,0))}</div><div class="hl-sub">${t('from_dividends')||'from dividends'}</div></div>
     </div>
     <div class="two-col">
       <div class="sc">
-        <div class="sc-title">Sektoraufteilung</div>
-        <div style="position:relative;height:250px;"><canvas id="sectorChart" role="img" aria-label="Sektoraufteilung"></canvas></div>
+        <div class="sc-title">${t('sector_allocation')||'Sector Allocation'}</div>
+        <div style="position:relative;height:250px;"><canvas id="sectorChart" role="img" aria-label="Sector Allocation"></canvas></div>
         <div id="sector-legend" style="margin-top:14px;"></div>
       </div>
       <div class="sc">
@@ -2102,13 +2150,13 @@ function renderDiversification(){
   // Donut chart
   if(sectorChartInst) sectorChartInst.destroy();
   const innerData = HOLDINGS.map(h=>({ticker:h.ticker,val:h.shares*h.price,sector:h.sector}));
-  const innerColors = innerData.map(d=>(SECTOR_COLORS[d.sector]||'#94a3b8')+'bb');
+  const innerColors = innerData.map(d=>(getSectorColor(d.sector, innerData.indexOf(d)))+'bb');
   sectorChartInst = new Chart(document.getElementById('sectorChart').getContext('2d'),{
     type:'doughnut',
     data:{
       labels:[...sortedSectors.map(s=>s[0]),...innerData.map(d=>d.ticker)],
       datasets:[
-        {data:sortedSectors.map(s=>s[1].pct),backgroundColor:sortedSectors.map(s=>SECTOR_COLORS[s[0]]||'#94a3b8'),borderWidth:3,borderColor:'#fff',weight:2},
+        {data:sortedSectors.map(s=>s[1].pct),backgroundColor:sortedSectors.map((s,i)=>getSectorColor(s[0],i)),borderWidth:3,borderColor:'#fff',weight:2},
         {data:innerData.map(d=>d.val/total*100),backgroundColor:innerColors,borderWidth:2,borderColor:'#fff',weight:1}
       ]
     },
@@ -2118,7 +2166,7 @@ function renderDiversification(){
   // Legend
   const leg = document.getElementById('sector-legend');
   sortedSectors.forEach(([name,data])=>{
-    const color = SECTOR_COLORS[name]||'#94a3b8';
+    const color = getSectorColor(name, i);
     leg.innerHTML+=`<div class="pie-legend-item" style="margin-bottom:10px;">
       <div class="pie-dot" style="background:${color};margin-top:3px;flex-shrink:0;"></div>
       <div style="flex:1">
@@ -2171,14 +2219,8 @@ function renderDividendsTab(){
     const freq = h.frequency || 4;
     const perPayment = (h.shares*h.annDiv)/freq;
 
-    // Use real payment months if stored, else use defaults
-    let pMonths = (h.paymentMonths && h.paymentMonths.length) ? h.paymentMonths : null;
-    if(!pMonths) {
-      if(freq===12)     pMonths = [0,1,2,3,4,5,6,7,8,9,10,11];
-      else if(freq===4) pMonths = [2,5,8,11];
-      else if(freq===2) pMonths = [2,8];
-      else              pMonths = [11];
-    }
+    // Use real payment months if stored, else use known defaults
+    let pMonths = (h.paymentMonths && h.paymentMonths.length) ? h.paymentMonths : getPaymentMonths(h.ticker, freq);
 
     // Map to next 12 months window
     for(let i=0;i<12;i++){
@@ -2227,13 +2269,7 @@ function renderDividendsTab(){
     payGrid[ticker]={};
     const freq = h.frequency || 4;
     const perPayment = (h.shares*h.annDiv)/freq;
-    let pMonths = (h.paymentMonths && h.paymentMonths.length) ? h.paymentMonths : null;
-    if(!pMonths) {
-      if(freq===12)     pMonths = [0,1,2,3,4,5,6,7,8,9,10,11];
-      else if(freq===4) pMonths = [2,5,8,11];
-      else if(freq===2) pMonths = [2,8];
-      else              pMonths = [11];
-    }
+    let pMonths = (h.paymentMonths && h.paymentMonths.length) ? h.paymentMonths : getPaymentMonths(h.ticker, freq);
     rotatedLabels.forEach((label,i)=>{
       const monthIdx = (startMonth+i)%12;
       payGrid[ticker][label] = pMonths.includes(monthIdx) ? perPayment : 0;
@@ -2293,18 +2329,18 @@ function renderForecastTab(){
   el.innerHTML=`
     <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
       <div class="kpi"><div class="kpi-label">${t('growth_label')}</div><div class="kpi-val green" id="f-growth-val">5.34%</div></div>
-      <div class="kpi"><div class="kpi-label">Aktueller Yield</div><div class="kpi-val" id="f-yield-val">${fmt(p.yield,2)}%</div></div>
-      <div class="kpi"><div class="kpi-label">Starteinkommen</div><div class="kpi-val" id="f-start-val">${fU(p.annDiv)}</div></div>
-      <div class="kpi"><div class="kpi-label">Endeinkommen</div><div class="kpi-val green" id="f-end-val">—</div></div>
+      <div class="kpi"><div class="kpi-label">${t('portfolio_yield')}</div><div class="kpi-val" id="f-yield-val">${fmt(p.yield,2)}%</div></div>
+      <div class="kpi"><div class="kpi-label">${t('annual_income')}</div><div class="kpi-val" id="f-start-val">${fU(p.annDiv)}</div></div>
+      <div class="kpi"><div class="kpi-label">${currentLang==='de'?'Endeinkommen':currentLang==='es'?'Ingreso Final':currentLang==='fr'?'Revenu Final':'End Income'}</div><div class="kpi-val green" id="f-end-val">—</div></div>
     </div>
     <div class="sc">
       <div class="sc-title">${t('projection')}</div>
       <div class="years-toggle" id="years-toggle">
         <button class="yr-btn" onclick="setForecastYears(5)">5 ${t('years')}</button>
         <button class="yr-btn active" onclick="setForecastYears(10)">10 ${t('years')}</button>
-        <button class="yr-btn" onclick="setForecastYears(15)">15 ${t('years')} 🔒</button>
-        <button class="yr-btn" onclick="setForecastYears(20)">20 ${t('years')} 🔒</button>
-        <button class="yr-btn" onclick="setForecastYears(25)">25 ${t('years')} 🔒</button>
+        <button class="yr-btn" onclick="setForecastYears(15)">${isPro()?'':'🔒 '}15 ${t('years')}</button>
+        <button class="yr-btn" onclick="setForecastYears(20)">${isPro()?'':'🔒 '}20 ${t('years')}</button>
+        <button class="yr-btn" onclick="setForecastYears(25)">${isPro()?'':'🔒 '}25 ${t('years')}</button>
       </div>
     </div>
     <div class="sc">
@@ -2346,8 +2382,8 @@ function setForecastYears(y){
   }
   forecastYears=y;
   document.querySelectorAll('#years-toggle .yr-btn').forEach(b=>{
-    const y = parseInt(b.textContent);
-    b.classList.toggle('active', y === forecastYears);
+    const num = parseInt(b.textContent.replace(/[^0-9]/g,''));
+    b.classList.toggle('active', num === y);
   });
   updateForecast();
 }
@@ -3402,35 +3438,43 @@ async function confirmImport() {
       const q = await fmpFetch('quote', {symbol: row.ticker});
       const data = Array.isArray(q) ? q[0] : q;
 
-      // Accept if we got any price data
       const livePrice = data?.price || data?.c || data?.regularMarketPrice || 0;
-      if(!livePrice) {
-        console.log('No price for', row.ticker, data);
-        skipped++;
-        continue;
-      }
+      if(!livePrice) { skipped++; continue; }
 
       const divYield = data?.dividendYield
         ? (data.dividendYield > 1 ? data.dividendYield : data.dividendYield * 100)
         : 0;
+
+      // Fetch dividend history to detect real payment months
+      let frequency = 4;
+      let paymentMonths = getPaymentMonths(row.ticker, 4); // start with known table
+      try {
+        const divData = await fmpFetch('dividends', {symbol: row.ticker});
+        if(Array.isArray(divData) && divData.length > 0) {
+          frequency = divData[0].frequency || 4;
+          if(divData[0].paymentMonths?.length) {
+            paymentMonths = divData[0].paymentMonths; // use real detected months
+          } else {
+            paymentMonths = getPaymentMonths(row.ticker, frequency);
+          }
+        }
+      } catch(e) { /* keep defaults */ }
 
       HOLDINGS.push({
         ticker:    row.ticker,
         name:      data?.name || data?.companyName || row.name || row.ticker,
         shares:    row.shares,
         price:     livePrice,
-        cost:      row.cost > 0 ? row.cost : livePrice, // use live price if no cost given
+        cost:      row.cost > 0 ? row.cost : livePrice,
         dayChg:    data?.changePercentage || data?.dp || 0,
         yield:     divYield,
         sector:    data?.sector || data?.exchange || 'Unknown',
         annDiv:    divYield > 0 ? (livePrice * divYield / 100) : 0,
-        dg5:       0,
-        payout:    0,
-        years:     0,
+        dg5:       0, payout:0, years:0,
         ar:false, hy:false, gr:false, re:false,
-        frequency: 4,
-        paymentMonths: null,
-        date:      new Date().toISOString().slice(0,10),
+        frequency,
+        paymentMonths,
+        date: new Date().toISOString().slice(0,10),
       });
       added++;
     } catch(e) {
@@ -3741,6 +3785,9 @@ const TRANSLATIONS = {
     vs_sp500:'Portfolio vs S&P 500',income_advantage:'Einkommensvorteil',
     your_yield:'Dein Dividendenertrag',sp500_yield:'S&P 500 Ertrag',
     note:'Hinweis',
+    highest_yield:'Höchster Yield',largest_position:'Größte Position',
+    from_dividends:'aus Dividenden',sector_allocation:'Sektoraufteilung',
+    stocks:'Aktien',sectors:'Sektoren',
   },
   en: {
     dashboard:'Dashboard',diversification:'Diversification',dividends:'Dividends',forecast:'Future Value',research:'Research',
@@ -3771,6 +3818,9 @@ const TRANSLATIONS = {
     vs_sp500:'Portfolio vs S&P 500',income_advantage:'Income Advantage',
     your_yield:'Your Dividend Yield',sp500_yield:'S&P 500 Yield',
     note:'Note',
+    highest_yield:'Highest Yield',largest_position:'Largest Position',
+    from_dividends:'from dividends',sector_allocation:'Sector Allocation',
+    stocks:'stocks',sectors:'sectors',
   },
   es: {
     dashboard:'Panel',diversification:'Diversificación',dividends:'Dividendos',forecast:'Valor Futuro',research:'Investigación',
@@ -3801,6 +3851,9 @@ const TRANSLATIONS = {
     vs_sp500:'Portafolio vs S&P 500',income_advantage:'Ventaja de Ingresos',
     your_yield:'Tu Rendimiento de Dividendos',sp500_yield:'Rendimiento S&P 500',
     note:'Nota',
+    highest_yield:'Mayor Rendimiento',largest_position:'Posición más Grande',
+    from_dividends:'de dividendos',sector_allocation:'Distribución Sectorial',
+    stocks:'acciones',sectors:'sectores',
   },
   fr: {
     dashboard:'Tableau de bord',diversification:'Diversification',dividends:'Dividendes',forecast:'Valeur Future',research:'Recherche',
@@ -3831,6 +3884,9 @@ const TRANSLATIONS = {
     vs_sp500:'Portefeuille vs S&P 500',income_advantage:'Avantage de Revenu',
     your_yield:'Votre Rendement de Dividendes',sp500_yield:'Rendement S&P 500',
     note:'Note',
+    highest_yield:'Rendement le plus élevé',largest_position:'Position la plus grande',
+    from_dividends:'de dividendes',sector_allocation:'Répartition Sectorielle',
+    stocks:'actions',sectors:'secteurs',
   },
 };
 
@@ -3865,9 +3921,9 @@ function applyTranslations() {
   // Upgrade button
   const upBtn = document.getElementById('upgrade-nav-btn');
   if(upBtn) upBtn.textContent = t('upgrade');
-  // Add stock button
-  const addBtn = document.querySelector('.add-btn-sm');
-  if(addBtn) addBtn.textContent = t('add_stock');
+  // Add stock button (by ID to avoid overwriting Upload File button)
+  const addBtn = document.getElementById('btn-add-stock');
+  if(addBtn) addBtn.textContent = '+ ' + t('add_stock').replace('+ ','');
   // Research tabs
   const resTabs = document.querySelectorAll('.res-tab');
   const resKeys = ['all','aristocrats','high_yield','growth','reits'];
