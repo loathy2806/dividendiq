@@ -2616,26 +2616,26 @@ function quickAddFromResearch(ticker) {
 // ═══════════════════════════════════════════════════
 let prevTab='dashboard';
 
-function openDetail(ticker) {
+async function openDetail(ticker) {
   const s = STOCK_DB.find(x => x.ticker === ticker) || HOLDINGS.find(x => x.ticker === ticker);
   if (!s) return;
   prevTab = activeTab;
   document.getElementById('sd-ticker').textContent = ticker;
   document.getElementById('sd-fullname').textContent = s.name;
-  document.getElementById('sd-sector').textContent = s.sector + ' · NYSE/NASDAQ';
+  document.getElementById('sd-sector').textContent = (s.sector||'') + ' · NYSE/NASDAQ';
   document.getElementById('sd-price').textContent = '$' + fmt(s.price, 2);
-  document.getElementById('sd-chg').textContent = '— heute';
+  document.getElementById('sd-chg').textContent = '—';
   document.getElementById('sd-chg').className = 'sdh-price-chg';
-  document.getElementById('sd-breadcrumb').textContent = (prevTab === 'dashboard' ? 'Dashboard' : prevTab === 'research' ? 'Research' : 'Diversifikation') + ' → ' + ticker;
+  document.getElementById('sd-breadcrumb').textContent = (prevTab === 'dashboard' ? 'Dashboard' : prevTab === 'research' ? 'Research' : 'Diversification') + ' → ' + ticker;
 
   const fwd = s.yield || 0;
   const metrics = [
-    {l:'Forward Yield',  v:fwd>0?fmt(fwd,2)+'%':'—',         s:fwd>0?'$'+fmt(s.annDivPS||s.annDiv||0,2)+' / Aktie p.a.':''},
+    {l:'Forward Yield',  v:fwd>0?fmt(fwd,2)+'%':'—',         s:fwd>0?'$'+fmt(s.annDivPS||s.annDiv||0,2)+' / share p.a.':''},
     {l:'Payout Ratio',   v:(s.payout||0)>0?s.payout+'%':'—', s:''},
-    {l:'Div.-Jahre',     v:(s.years||0)>0?s.years+'J':'—',    s:'Consecutive Increases'},
+    {l:'Div. Years',     v:(s.years||0)>0?s.years+'Y':'—',    s:'Consecutive Increases'},
     {l:'5Y DGR',         v:(s.dg5||0)>0?fmt(s.dg5,1)+'%':'—',s:'Avg. Dividend Growth'},
-    {l:'52W Hoch',       v:'—',                                s:''},
-    {l:'52W Tief',       v:'—',                                s:''},
+    {l:'52W High',       v:'—',                                s:''},
+    {l:'52W Low',        v:'—',                                s:''},
   ];
   document.getElementById('sd-metrics').innerHTML = metrics.map(x =>
     `<div class="sdh-metric"><div class="sdh-m-label">${x.l}</div><div class="sdh-m-val">${x.v}</div>${x.s?`<div class="sdh-m-sub">${x.s}</div>`:''}</div>`
