@@ -125,8 +125,20 @@ exports.handler = async (event) => {
       if (!Array.isArray(data) || !data.length) {
         result = [];
       } else {
-        result = data
-          .sort((a,b) => new Date(b.date) - new Date(a.date))
+        const sorted = data.sort((a,b) => new Date(b.date) - new Date(a.date));
+        // Detect frequency from payment months
+        const months = sorted.slice(0,12).map(d => new Date(d.date).getMonth());
+        const uniqueMonths = [...new Set(months)].length;
+        let frequency = 4; // default quarterly
+        if (uniqueMonths >= 10)      frequency = 12; // monthly
+        else if (uniqueMonths <= 2)  frequency = 2;  // semi-annual
+        else if (uniqueMonths <= 1)  frequency = 1;  // annual
+        else                         frequency = 4;  // quarterly
+
+        // Extract payment months (0-indexed) from most recent year
+        const recentMonths = sorted.slice(0, frequency).map(d => new Date(d.date).getMonth());
+
+        result = sorted
           .slice(0, 24)
           .map(d => ({
             date:        d.date,
@@ -135,6 +147,8 @@ exports.handler = async (event) => {
             recordDate:  d.recordDate  || d.date,
             paymentDate: d.payDate     || d.date,
             exDate:      d.date,
+            frequency,
+            paymentMonths: recentMonths,
           }));
       }
     }
