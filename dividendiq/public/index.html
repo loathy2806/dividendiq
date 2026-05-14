@@ -2129,7 +2129,31 @@ const SECTOR_COLORS={
 let sectorChartInst=null;
 let pcInst=null, dhInst=null, compChartInst=null;
 
-// Known payment months for common dividend stocks
+// Known ISIN → Ticker mapping for common stocks
+const ISIN_TO_TICKER = {
+  'US00287Y1091':'ABBV','US02079K1079':'GOOGL','US02079K3059':'GOOG',
+  'US02209S1033':'MO','USN070592100':'ASML','US00206R1023':'T',
+  'US1491231015':'CAT','US1667641005':'CVX','US1912161007':'KO',
+  'US4592001014':'IBM','US4781601046':'JNJ','US5949181045':'MSFT',
+  'US7170811035':'PFE','US7427181091':'PG','US92826C8394':'VZ',
+  'US2561631068':'DOW','US2605571031':'DUK','US3696041033':'GE',
+  'US4878361082':'KMB','US5312921016':'LMT','US5801351017':'MCD',
+  'US58013710011':'MCD','US6311011026':'NGG','US7561091049':'RHHBY',
+  'US8715031089':'STX','US8873891043':'TGT','US9024941034':'WBA',
+  'US9311421039':'WMT','US9789730104':'ZTS','US0378331005':'AAPL',
+  'US0231351067':'AMZN','US88160R1014':'TSLA','US4180561072':'HD',
+  'US4592001014':'IBM','US46090E1038':'IRM','US5728481015':'LOW',
+  'US3703341046':'GIS','US4592001014':'IBM','US2546871060':'DIS',
+  'US30231G1022':'XOM','US6745991058':'ORCL','US7134481081':'PEP',
+  'US4385161066':'HPQ','US0605051046':'BA','US1729081059':'CI',
+  'US2058871029':'MO','US6516391066':'NKE','US91324P1021':'UNP',
+  'DE0005140008':'DBK','DE0007164600':'SAP','DE0008404005':'ALV',
+  'US2473617023':'DE','US59491810015':'MRK','US4523271090':'INTC',
+};
+
+function isinToTicker(isin) {
+  return ISIN_TO_TICKER[isin?.trim()] || null;
+}
 const KNOWN_PAY_MONTHS = {
   'KO':[0,3,6,9],'MO':[0,3,6,9],'PM':[0,3,6,9],'T':[1,4,7,10],
   'JNJ':[2,5,8,11],'MSFT':[2,5,8,11],'SCHD':[2,5,8,11],'HD':[2,5,8,11],
@@ -3319,19 +3343,41 @@ async function handleImportFile(file) {
 }
 
 function parseCSV(text) {
-  const lines = text.trim().split('\n').filter(l => l.trim());
-  if(lines.length < 2) return [];
+  const allLines = text.trim().split('\n').filter(l => l.trim());
 
   // Detect delimiter
-  const delim = lines[0].includes(';') ? ';' : ',';
-  const headers = lines[0].split(delim).map(h => h.trim().toLowerCase().replace(/['"]/g,''));
+  const delim = allLines[0]?.includes(';') ? ';' : allLines[0]?.includes('\t') ? '\t' : ',';
 
-  return lines.slice(1).map(line => {
-    const vals = line.split(delim).map(v => v.trim().replace(/['"]/g,''));
+  // Find the header row — skip intro rows until we find one with useful column names
+  let headerIdx = -1;
+  for(let i=0; i<Math.min(10, allLines.length); i++) {
+    const lower = allLines[i].toLowerCase();
+    if(lower.includes('ticker') || lower.includes('symbol') || lower.includes('bezeichnung') ||
+       lower.includes('isin') || lower.includes('stück') || lower.includes('shares') ||
+       lower.includes('quantity') || lower.includes('nombre')) {
+      headerIdx = i;
+      break;
+    }
+  }
+  if(headerIdx === -1) headerIdx = 0; // fallback to first line
+
+  const headerLine = allLines[headerIdx];
+  const headers = headerLine.split(delim).map(h => h.trim().replace(/['"]/g,'').toLowerCase());
+
+  const dataLines = allLines.slice(headerIdx+1).filter(l => {
+    const trimmed = l.trim();
+    return trimmed && !trimmed.startsWith('Instrumentenart') && trimmed.split(delim).length > 2;
+  });
+
+  return dataLines.map(line => {
+    const vals = line.split(delim).map(v => v.trim().replace(/^["']|["']$/g,''));
     const row = {};
-    headers.forEach((h,i) => row[h] = vals[i] || '');
+    headers.forEach((h,i) => { if(h) row[h] = vals[i] || ''; });
+    // Also store raw vals for positional parsing
+    row['_vals'] = vals;
+    row['_headers'] = headers;
     return row;
-  }).filter(r => Object.values(r).some(v => v));
+  }).filter(r => Object.values(r).some(v => v && v !== ''));
 }
 
 async function parseExcel(file) {
@@ -3366,26 +3412,32 @@ async function parseExcel(file) {
   });
 }
 
-// Detect column mapping from various broker formats
 function detectColumns(headers) {
   const map = {};
 
-  // Ticker/Symbol
-  const tickerCols = ['ticker','symbol','isin','wkn','stock','instrument'];
+  // Ticker/Symbol — also check for ISIN column
+  const tickerCols = ['ticker','symbol','instrument'];
   map.ticker = headers.find(h => tickerCols.some(t => h.includes(t)));
-  // fallback — first column often has ticker
-  if(!map.ticker) map.ticker = headers[0];
 
-  // Shares/Quantity
-  const sharesCols = ['shares','quantity','qty','anzahl','stück','units','menge','position'];
+  // ISIN column (German brokers use this instead of ticker)
+  const isinCols = ['isin','wkn','isin/wkn'];
+  map.isin = headers.find(h => isinCols.some(t => h.includes(t)));
+
+  // Name/Bezeichnung column
+  const nameCols = ['bezeichnung','name','title','description','instrument'];
+  map.name = headers.find(h => nameCols.some(t => h.includes(t)));
+
+  // Shares/Stück
+  const sharesCols = ['stück','stk','shares','quantity','qty','anzahl','units','menge','nominal','nominalwert','stück/nominalwert'];
   map.shares = headers.find(h => sharesCols.some(t => h.includes(t)));
 
-  // Cost/Price — prioritize AverageCost over Price
-  const costCols = ['averagecost','average cost','avg cost','avgcost','cost','einstieg','kaufpreis','purchase','paid','buyprice'];
-  map.cost = headers.find(h => costCols.some(t => h.replace(/\s/g,'').toLowerCase().includes(t.replace(/\s/g,''))));
-  // fallback to price if no cost column
+  // Cost/Kaufkurs — prioritize average cost over current price
+  const costCols = ['kaufkurs','einstands','einstand','averagecost','average cost','avg cost','avgcost','cost','purchase','paid','buyprice','kauf'];
+  map.cost = headers.find(h => costCols.some(t => h.replace(/\s/g,'').includes(t.replace(/\s/g,''))));
+
+  // Fallback to price if no cost
   if(!map.cost) {
-    const priceCols = ['price','kurs','value'];
+    const priceCols = ['marktkurs','price','kurs','value','cours'];
     map.cost = headers.find(h => priceCols.some(t => h.includes(t)));
   }
 
@@ -3394,10 +3446,17 @@ function detectColumns(headers) {
 
 function cleanNumber(val) {
   if(!val) return 0;
-  // Remove $, €, £, %, commas, spaces, +, and handle negative
-  const negative = String(val).includes('-');
-  const num = parseFloat(String(val).replace(/[$€£%,\s+]/g,'').replace(',','.')) || 0;
-  return negative ? -Math.abs(num) : num;
+  const str = String(val).trim();
+  const negative = str.includes('-');
+  // Handle European format: 1.234,56 → 1234.56
+  let cleaned = str
+    .replace(/[€$£%+\s]/g,'')
+    .replace(/\.(?=\d{3}[,])/g,'')   // remove thousands dot separator
+    .replace(',','.');                  // decimal comma to dot
+  // Remove remaining non-numeric except minus and dot
+  cleaned = cleaned.replace(/[^0-9.\-]/g,'');
+  const num = parseFloat(cleaned) || 0;
+  return negative ? -Math.abs(num) : Math.abs(num);
 }
 
 function extractTicker(raw) {
@@ -3438,23 +3497,52 @@ function showImportPreview(rows) {
 
   // Try to map each row
   const mapped = rows.map(row => {
-    const tickerRaw = colMap.ticker ? row[colMap.ticker] : Object.values(row)[0] || '';
+    const headers = row['_headers'] || Object.keys(row).map(k=>k.toLowerCase());
+    const vals    = row['_vals']    || Object.values(row);
+
+    // Try ISIN first → lookup ticker
+    const isinRaw = colMap.isin ? row[colMap.isin] : '';
+    const isin    = isinRaw?.trim().replace(/['"]/g,'');
+    let ticker    = isinToTicker(isin) || '';
+
+    // If no ISIN match, try ticker column
+    if(!ticker && colMap.ticker) {
+      ticker = extractTicker(row[colMap.ticker]);
+    }
+
+    // If still no ticker, try to extract from name column
+    if(!ticker && colMap.name) {
+      const nameVal = row[colMap.name] || '';
+      ticker = extractTicker(nameVal);
+    }
+
+    // Get company name
+    const nameRaw = colMap.name ? row[colMap.name] : '';
+    const name = nameRaw ? nameRaw.trim().replace(/\s+/g,' ').slice(0,40) : ticker;
+
+    // Shares — handle "13	Stk." format (value in one col, unit in next)
     const sharesRaw = colMap.shares ? row[colMap.shares] : '';
-    const costRaw   = colMap.cost   ? row[colMap.cost]   : '';
-
-    const ticker = extractTicker(tickerRaw);
-    const name   = extractName(tickerRaw);
     const shares = Math.abs(cleanNumber(sharesRaw));
-    const cost   = Math.abs(cleanNumber(costRaw));
 
-    return { ticker, name, shares, cost, valid: ticker.length >= 1 && shares > 0 };
+    // Cost — handle European number format (1.234,56 → 1234.56)
+    const costRaw = colMap.cost ? row[colMap.cost] : '';
+    const costCleaned = String(costRaw)
+      .replace(/[€$£%\s]/g,'')
+      .replace(/\.(?=\d{3}[,\s])/g,'')  // remove thousands separator
+      .replace(',','.');                   // decimal comma → dot
+    const cost = Math.abs(parseFloat(costCleaned)) || 0;
+
+    return { ticker, name, shares, cost, isin, valid: ticker.length >= 1 && shares > 0 };
   }).filter(r => r.ticker && r.shares > 0);
 
   if(!mapped.length) {
     warning.style.display = 'block';
-    warning.textContent = '⚠️ Could not detect ticker/shares columns. Please check your file format.';
+    warning.innerHTML = `⚠️ Could not detect positions in this file.<br>
+      <strong>Tip:</strong> Make sure the file has columns for stock name/ISIN and quantity.<br>
+      Supported: Flatex, IBKR, Degiro, Revolut, Trading 212, or any CSV with ticker+shares.`;
     btn.disabled = true;
     btn.style.opacity = '.5';
+    title.textContent = 'No positions found';
     preview.style.display = 'block';
     return;
   }
@@ -3463,13 +3551,14 @@ function showImportPreview(rows) {
 
   // Show preview table
   table.innerHTML = `
-    <thead><tr><th>Ticker</th><th>Shares</th><th>Avg Cost</th><th>Status</th></tr></thead>
-    <tbody>${mapped.slice(0,10).map(r => `
+    <thead><tr><th>Ticker</th><th>Name</th><th>Shares</th><th>Avg Cost</th><th>Status</th></tr></thead>
+    <tbody>${mapped.slice(0,12).map(r => `
       <tr>
-        <td style="font-weight:700">${r.ticker}</td>
+        <td style="font-weight:700">${r.ticker}${r.isin && !ISIN_TO_TICKER[r.isin] ? `<div style="font-size:9px;color:var(--text3)">${r.isin}</div>` : ''}</td>
+        <td style="font-size:11px;color:var(--text2)">${r.name?.slice(0,25)||'—'}</td>
         <td>${r.shares}</td>
-        <td>${r.cost > 0 ? '$'+r.cost.toFixed(2) : '—'}</td>
-        <td style="color:${r.valid?'#16a34a':'#dc2626'}">${r.valid?'✓ Ready':'⚠ Check'}</td>
+        <td>${r.cost > 0 ? '€'+r.cost.toFixed(2) : '—'}</td>
+        <td style="color:${r.valid?'#16a34a':'#dc2626'}">${r.valid?'✓':'⚠'}</td>
       </tr>`).join('')}
     </tbody>`;
 
