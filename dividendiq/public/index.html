@@ -3127,6 +3127,8 @@ async function doDeleteAccount() {
   } catch(e) {}
   doLogout();
 }
+
+function closeOnboarding() {
   const modal = document.getElementById('modal-onboarding');
   if(modal) modal.style.display = 'none';
   localStorage.setItem('diq_onboarded', '1');
