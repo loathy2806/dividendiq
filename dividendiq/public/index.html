@@ -1103,9 +1103,11 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
         <div class="pc">
           <div class="pc-title" style="color:var(--danger)">Danger Zone</div>
           <div style="font-size:13px;color:var(--text2);margin-bottom:14px;">Deleting your account permanently removes all data.</div>
-          <button class="danger-btn" onclick="openModal('delete')">Delete Account</button>
-          &nbsp;
-          <button style="padding:9px 22px;background:none;border:1px solid var(--border);border-radius:var(--rsm);font-size:13px;font-weight:600;cursor:pointer;" onclick="doLogout()">Sign Out</button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="danger-btn" onclick="openModal('clear-portfolio')" style="background:#fff3cd;color:#92400e;border:1px solid #fcd34d;">🗑 Clear Portfolio</button>
+            <button class="danger-btn" onclick="openModal('delete')">Delete Account</button>
+            <button style="padding:9px 22px;background:none;border:1px solid var(--border);border-radius:var(--rsm);font-size:13px;font-weight:600;cursor:pointer;" onclick="doLogout()">Sign Out</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1313,11 +1315,23 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
 <div class="modal-overlay" id="modal-delete" onclick="if(event.target===this)closeModals()">
   <div class="modal">
     <div class="modal-title" style="color:var(--danger)">Really delete account?</div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">Diese Aktion ist <strong>unwiderruflich</strong>.</p>
-    <div style="margin-bottom:14px;"><label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px;">"LÖSCHEN" eingeben zur Bestätigung</label><input type="text" id="delete-confirm" placeholder="LÖSCHEN"></div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">This action is <strong>irreversible</strong>. All your data will be permanently deleted.</p>
+    <div style="margin-bottom:14px;"><label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px;">Type "DELETE" to confirm</label><input type="text" id="delete-confirm" placeholder="DELETE"></div>
     <div class="modal-btns">
       <button class="cancel-btn" onclick="closeModals()">Cancel</button>
-      <button class="danger-btn" style="flex:1;" onclick="alert('Demo: Konto gelöscht');doLogout()">Löschen</button>
+      <button class="danger-btn" style="flex:1;" onclick="doDeleteAccount()">Delete Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLEAR PORTFOLIO MODAL -->
+<div class="modal-overlay" id="modal-clear-portfolio" onclick="if(event.target===this)closeModals()">
+  <div class="modal">
+    <div class="modal-title" style="color:var(--danger)">🗑 Clear Portfolio?</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">This will remove all <strong>${()=>HOLDINGS.length||0} positions</strong> from your portfolio. Your account will not be deleted.</p>
+    <div class="modal-btns">
+      <button class="cancel-btn" onclick="closeModals()">Cancel</button>
+      <button class="danger-btn" style="flex:1;" onclick="clearPortfolio()">Clear All Positions</button>
     </div>
   </div>
 </div>
@@ -2020,35 +2034,76 @@ function renderDashboard(){
     return;
   }
 
+  let sortCol = window.dashSortCol || 'ticker';
+  let sortDir = window.dashSortDir || 1;
+
+  function sortHoldings(col) {
+    if(sortCol === col) sortDir *= -1;
+    else { sortCol = col; sortDir = 1; }
+    window.dashSortCol = sortCol;
+    window.dashSortDir = sortDir;
+    renderDashboard();
+  }
+  window.sortHoldings = sortHoldings;
+
+  const sorted = [...HOLDINGS].sort((a,b)=>{
+    let va, vb;
+    const mva=a.shares*a.price, mvb=b.shares*b.price;
+    const gla=mva-a.shares*a.cost, glb=mvb-b.shares*b.cost;
+    if(sortCol==='ticker')  { va=a.ticker; vb=b.ticker; return sortDir*(va<vb?-1:va>vb?1:0); }
+    if(sortCol==='price')   { va=a.price;  vb=b.price;  }
+    if(sortCol==='shares')  { va=a.shares; vb=b.shares; }
+    if(sortCol==='mv')      { va=mva;      vb=mvb;      }
+    if(sortCol==='dayChg')  { va=a.dayChg; vb=b.dayChg; }
+    if(sortCol==='cost')    { va=a.cost;   vb=b.cost;   }
+    if(sortCol==='gl')      { va=gla;      vb=glb;      }
+    if(sortCol==='yield')   { va=a.yield;  vb=b.yield;  }
+    if(sortCol==='yoc')     { va=a.yield>0?(a.shares*a.annDiv)/(a.shares*a.cost)*100:0; vb=b.yield>0?(b.shares*b.annDiv)/(b.shares*b.cost)*100:0; }
+    if(sortCol==='annual')  { va=a.shares*a.annDiv; vb=b.shares*b.annDiv; }
+    return sortDir*((va||0)-(vb||0));
+  });
+
+  const sym = CURRENCY_SYMBOL[currentCurrency]||'$';
+  const arrow = col => col===sortCol ? (sortDir===1?'▲':'▼') : '↕';
+  const th = (col,label,w) => `<th style="width:${w};cursor:pointer;user-select:none;" onclick="sortHoldings('${col}')">${label} <span style="font-size:9px;color:var(--text3)">${arrow(col)}</span></th>`;
+
   let rows = '';
-  HOLDINGS.forEach(h=>{
-    const mv=h.shares*h.price,tc=h.shares*h.cost,gl=mv-tc,glP=gl/tc*100;
-    const ann=h.shares*h.annDiv,yoc=ann/tc*100,sg=h.dayChg>=0?'+':'';
+  sorted.forEach(h=>{
+    const mv=h.shares*h.price, tc=h.shares*h.cost, gl=mv-tc, glP=tc>0?gl/tc*100:0;
+    const ann=h.shares*(h.annDiv||0), yoc=tc>0?ann/tc*100:0, sg=h.dayChg>=0?'+':'';
     rows+=`<tr>
-      <td><span class="tp" onclick="openDetail('${h.ticker}')">${h.ticker}</span></td>
+      <td><span class="tp" onclick="openDetail('${h.ticker}')">${h.ticker}</span><div style="font-size:10px;color:var(--text3)">${h.name?.split(' ').slice(0,2).join(' ')||''}</div></td>
       <td>${h.shares%1===0?h.shares:fmt(h.shares,3)}</td>
-      <td>${fU(mv)}</td>
+      <td style="font-weight:700">${sym}${fmt(h.price,2)}</td>
+      <td>${sym}${fmt(mv,0)}</td>
       <td class="${h.dayChg>=0?'green':'red'}">${sg}${fmt(h.dayChg,2)}%</td>
-      <td>$${fmt(h.cost,2)}</td>
-      <td class="${gl>=0?'green':'red'}">${gl>=0?'+':''}${fU(gl)} (${gl>=0?'+':''}${fmt(glP,1)}%)</td>
+      <td>${sym}${fmt(h.cost,2)}</td>
+      <td class="${gl>=0?'green':'red'}">${gl>=0?'+':''}${sym}${fmt(Math.abs(gl),0)} <span style="font-size:10px">(${gl>=0?'+':''}${fmt(glP,1)}%)</span></td>
       <td>${fmt(h.yield,2)}%</td>
       <td>${h.yield>0?fmt(yoc,2)+'%':'—'}</td>
-      <td class="${ann>0?'green':''}">${ann>0?fU(ann):'—'}</td>
+      <td class="${ann>0?'green':''}">${ann>0?sym+fmt(ann,0):'—'}</td>
       <td style="display:flex;gap:4px;">
-        <button class="remove-btn" onclick="editHolding('${h.ticker}')" title="Bearbeiten" style="background:#e0e7ff;color:#4338ca;border-color:#c7d2fe;">✏</button>
+        <button class="remove-btn" onclick="editHolding('${h.ticker}')" title="Edit" style="background:#e0e7ff;color:#4338ca;border-color:#c7d2fe;">✏</button>
         <button class="remove-btn" onclick="removeHolding('${h.ticker}')" title="Remove">✕</button>
       </td>
     </tr>`;
   });
-  wrap.innerHTML = `<table class="ht">
+
+  wrap.innerHTML = `<div style="overflow-x:auto;"><table class="ht">
     <thead><tr>
-      <th style="width:80px">${t('ticker')}</th><th style="width:55px">${t('shares')}</th>
-      <th style="width:90px">${t('market_value')}</th><th style="width:70px">${t('day_change')}</th>
-      <th style="width:82px">${t('avg_cost')}</th><th style="width:115px">${t('gain_loss')}</th>
-      <th style="width:62px">Yield</th><th style="width:62px">YoC</th>
-      <th style="width:80px">${t('annual_income')}</th><th style="width:50px"></th>
+      ${th('ticker',t('ticker'),'80px')}
+      ${th('shares',t('shares'),'50px')}
+      ${th('price','Price','75px')}
+      ${th('mv',t('market_value'),'85px')}
+      ${th('dayChg',t('day_change'),'65px')}
+      ${th('cost',t('avg_cost'),'75px')}
+      ${th('gl',t('gain_loss'),'110px')}
+      ${th('yield','Yield','55px')}
+      ${th('yoc','YoC','55px')}
+      ${th('annual',t('annual_income'),'80px')}
+      <th style="width:50px"></th>
     </tr></thead>
-    <tbody>${rows}</tbody></table>`;
+    <tbody>${rows}</tbody></table></div>`;
 }
 
 // ═══════════════════════════════════════════════════
@@ -2144,7 +2199,7 @@ function renderDiversification(){
         <div id="sector-legend" style="margin-top:14px;"></div>
       </div>
       <div class="sc">
-        <div class="sc-title">Positionsgewichtung</div>
+        <div class="sc-title">Position Weights</div>
         <div id="weight-bars"></div>
       </div>
     </div>`;
@@ -2167,7 +2222,7 @@ function renderDiversification(){
 
   // Legend
   const leg = document.getElementById('sector-legend');
-  sortedSectors.forEach(([name,data])=>{
+  sortedSectors.forEach(([name,data], i)=>{
     const color = getSectorColor(name, i);
     leg.innerHTML+=`<div class="pie-legend-item" style="margin-bottom:10px;">
       <div class="pie-dot" style="background:${color};margin-top:3px;flex-shrink:0;"></div>
@@ -3050,7 +3105,28 @@ function closeModals(){
   });
 }
 
-function closeOnboarding() {
+async function clearPortfolio() {
+  HOLDINGS = [];
+  DB.save();
+  await savePortfolio();
+  closeModals();
+  Object.keys(inited).forEach(k => delete inited[k]);
+  renderDashboard();
+  showToast('✓ Portfolio cleared', 'success');
+  setTimeout(hideToast, 2500);
+}
+
+async function doDeleteAccount() {
+  const confirm = document.getElementById('delete-confirm')?.value;
+  if(confirm !== 'DELETE') {
+    alert('Please type DELETE to confirm.');
+    return;
+  }
+  try {
+    await authFetch('delete', {});
+  } catch(e) {}
+  doLogout();
+}
   const modal = document.getElementById('modal-onboarding');
   if(modal) modal.style.display = 'none';
   localStorage.setItem('diq_onboarded', '1');
@@ -3546,7 +3622,7 @@ function renderWatchlist() {
       <td class="${(w.yield||0)>0?'green':''}">${w.yield>0?fmt(w.yield,2)+'%':'—'}</td>
       <td style="color:var(--text3);font-size:12px">${w.addedAt||'—'}</td>
       <td style="display:flex;gap:6px;">
-        <button class="remove-btn" style="background:#e0e7ff;color:#4338ca;border-color:#c7d2fe;" 
+        <button class="remove-btn" style="background:#e0e7ff;color:#4338ca;border-color:#c7d2fe;"
           onclick="addHoldingFromWatchlist('${w.ticker}')" title="Add to Portfolio">+</button>
         <button class="remove-btn" onclick="removeFromWatchlist('${w.ticker}')" title="Remove">✕</button>
       </td>
@@ -3554,16 +3630,16 @@ function renderWatchlist() {
 
   el.innerHTML = `<div class="sc">
     <div class="sc-title" style="display:flex;justify-content:space-between;align-items:center;">
-      <span>👁 Watchlist <span style="font-size:12px;color:var(--text3);font-weight:400">· ${WATCHLIST.length} stocks</span></span>
-      <button class="add-btn-sm" onclick="refreshWatchlistPrices()">↻ Refresh Prices</button>
+      <span>👁 ${t('watchlist')} <span style="font-size:12px;color:var(--text3);font-weight:400">· ${WATCHLIST.length} ${t('stocks')||'stocks'}</span></span>
+      <button class="add-btn-sm" onclick="refreshWatchlistPrices()">${t('refresh_prices')||'↻ Refresh Prices'}</button>
     </div>
-    <table class="ht">
+    <div style="overflow-x:auto;"><table class="ht">
       <thead><tr>
-        <th>Ticker</th><th>Name</th><th>Sector</th>
-        <th>Price</th><th>Yield</th><th>Added</th><th></th>
+        <th>${t('ticker')}</th><th>${t('name')||'Name'}</th><th>${t('sector_allocation')||'Sector'}</th>
+        <th>${t('market_value')||'Price'}</th><th>Yield</th><th>Added</th><th></th>
       </tr></thead>
       <tbody>${rows}</tbody>
-    </table>
+    </table></div>
   </div>`;
 }
 
@@ -3606,6 +3682,142 @@ function addHoldingFromWatchlist(ticker) {
 let benchmarkChartInst = null;
 
 async function renderBenchmark() {
+  const el = document.getElementById('benchmark-content');
+  if(!el) return;
+
+  if(!HOLDINGS.length) {
+    el.innerHTML = `<div class="sc"><div class="empty-state">
+      <div class="empty-icon">📈</div>
+      <div class="empty-title">No Portfolio to Compare</div>
+      <div class="empty-sub">Add stocks to your portfolio to compare performance against the S&P 500.</div>
+      <button class="add-btn" onclick="showTab('dashboard')">Go to Dashboard →</button>
+    </div></div>`;
+    return;
+  }
+
+  const p = calcPortfolio();
+  const totalMV   = p.total || 0;
+  const totalCost = p.cost  || 0;
+  const annDiv    = p.annDiv|| 0;
+
+  // Calculate yield correctly from holdings
+  const portfolioYield = totalMV > 0 ? (annDiv / totalMV * 100) : 0;
+  const portfolioYoC   = totalCost > 0 ? (annDiv / totalCost * 100) : 0;
+  const portfolioGL    = totalCost > 0 ? ((totalMV - totalCost) / totalCost * 100) : 0;
+
+  // S&P 500 benchmarks
+  const sp500 = {
+    divYield:  1.3,
+    ytdReturn: 8.2,
+    avgReturn: 10.5,
+    peRatio:   22.4,
+  };
+
+  const sym = CURRENCY_SYMBOL[currentCurrency]||'$';
+  const incAdv = portfolioYield - sp500.divYield;
+  const sp500AnnDiv = totalMV * sp500.divYield / 100;
+
+  el.innerHTML = `
+    <div class="sc" style="margin-bottom:18px;">
+      <div class="sc-title">📈 ${t('vs_sp500')}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;">
+        <div class="sdh-metric" style="text-align:center;padding:18px;">
+          <div class="sdh-m-label">${t('your_yield')}</div>
+          <div class="sdh-m-val" style="font-size:24px;color:var(--c1d)">${fmt(portfolioYield,2)}%</div>
+          <div class="sdh-m-sub" style="color:${incAdv>0?'#16a34a':'#dc2626'}">
+            ${incAdv>0?'▲ +':'▼ '}${fmt(Math.abs(incAdv),2)}% vs S&P 500
+          </div>
+        </div>
+        <div class="sdh-metric" style="text-align:center;padding:18px;">
+          <div class="sdh-m-label">${t('sp500_yield')}</div>
+          <div class="sdh-m-val" style="font-size:24px;color:var(--text2)">${sp500.divYield}%</div>
+          <div class="sdh-m-sub">Current average</div>
+        </div>
+        <div class="sdh-metric" style="text-align:center;padding:18px;">
+          <div class="sdh-m-label">${t('income_advantage')}</div>
+          <div class="sdh-m-val" style="font-size:24px;color:${incAdv>0?'#16a34a':'#dc2626'}">
+            ${incAdv>=0?'+':''}${fmt(incAdv,2)}%
+          </div>
+          <div class="sdh-m-sub">${incAdv>0?'You beat S&P 500 income':'S&P 500 has higher yield'}</div>
+        </div>
+      </div>
+
+      <div style="position:relative;height:260px;margin-bottom:20px;">
+        <canvas id="benchmarkChart"></canvas>
+      </div>
+
+      <table class="ht" style="margin-top:8px;">
+        <thead><tr>
+          <th style="text-align:left">Metric</th>
+          <th style="text-align:right">Your Portfolio</th>
+          <th style="text-align:right">S&P 500</th>
+          <th style="text-align:right">Difference</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>Dividend Yield</td>
+            <td style="text-align:right;color:var(--c1d);font-weight:700">${fmt(portfolioYield,2)}%</td>
+            <td style="text-align:right">${sp500.divYield}%</td>
+            <td style="text-align:right;color:${portfolioYield>=sp500.divYield?'#16a34a':'#dc2626'};font-weight:700">
+              ${portfolioYield>=sp500.divYield?'+':''}${fmt(portfolioYield-sp500.divYield,2)}%
+            </td>
+          </tr>
+          <tr>
+            <td>Yield on Cost</td>
+            <td style="text-align:right;color:var(--c1d);font-weight:700">${fmt(portfolioYoC,2)}%</td>
+            <td style="text-align:right">—</td>
+            <td style="text-align:right">—</td>
+          </tr>
+          <tr>
+            <td>Portfolio Gain/Loss</td>
+            <td style="text-align:right;color:${portfolioGL>=0?'#16a34a':'#dc2626'};font-weight:700">
+              ${portfolioGL>=0?'+':''}${fmt(portfolioGL,2)}%
+            </td>
+            <td style="text-align:right">${sp500.ytdReturn}% YTD</td>
+            <td style="text-align:right;color:${portfolioGL>=sp500.ytdReturn?'#16a34a':'#dc2626'};font-weight:700">
+              ${portfolioGL>=sp500.ytdReturn?'+':''}${fmt(portfolioGL-sp500.ytdReturn,2)}%
+            </td>
+          </tr>
+          <tr>
+            <td>Annual Dividend Income</td>
+            <td style="text-align:right;color:var(--c1d);font-weight:700">${sym}${fmt(annDiv,0)}</td>
+            <td style="text-align:right">${sym}${fmt(sp500AnnDiv,0)}</td>
+            <td style="text-align:right;color:${annDiv>=sp500AnnDiv?'#16a34a':'#dc2626'};font-weight:700">
+              ${annDiv>=sp500AnnDiv?'+':''}${sym}${fmt(annDiv-sp500AnnDiv,0)}
+            </td>
+          </tr>
+          <tr>
+            <td>Portfolio Value</td>
+            <td style="text-align:right;font-weight:700">${sym}${fmt(totalMV,0)}</td>
+            <td style="text-align:right">—</td>
+            <td style="text-align:right">—</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top:16px;padding:14px;background:var(--c1l);border-radius:10px;font-size:12px;color:var(--text2);line-height:1.6;">
+        <strong style="color:var(--c1d)">📌 ${t('note')}:</strong> S&P 500 data shows 2026 averages. Past performance does not guarantee future results. This is for informational purposes only and does not constitute investment advice.
+      </div>
+    </div>`;
+
+  if(benchmarkChartInst) benchmarkChartInst.destroy();
+  const ctx = document.getElementById('benchmarkChart').getContext('2d');
+  benchmarkChartInst = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:['Dividend Yield %','Yield on Cost %','Gain/Loss %'],
+      datasets:[
+        {label:'Your Portfolio',data:[portfolioYield, portfolioYoC, portfolioGL],backgroundColor:'#00c48c',borderRadius:6},
+        {label:'S&P 500',data:[sp500.divYield, 0, sp500.ytdReturn],backgroundColor:'rgba(79,142,247,.6)',borderRadius:6}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>` ${fmt(c.raw,2)}%`}}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}
+    }
+  });
+}
   const el = document.getElementById('benchmark-content');
   if(!el) return;
 
