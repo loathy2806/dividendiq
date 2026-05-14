@@ -6,6 +6,14 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/favicon.svg">
 <title>DividendIQ — Smart Dividend Portfolio Tracker</title>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-VV9J2E9R59"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-VV9J2E9R59');
+</script>
 <meta name="description" content="Track your dividend portfolio with real-time prices, income forecasts and research tools. Free to start.">
 <meta name="theme-color" content="#00c48c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1422,6 +1430,7 @@ async function doLogin() {
   btn.textContent = 'Anmelden'; btn.disabled = false;
   if (res.error) { showAuthError(res.error); return; }
   saveTokens(res.token, res.refresh_token);
+  gaEvent('login', 'auth', 'email');
   await loginAs(res.user);
 }
 
@@ -1429,14 +1438,15 @@ async function doRegister() {
   const name  = document.getElementById('reg-name').value.trim();
   const email = document.getElementById('reg-email').value.trim();
   const pw    = document.getElementById('reg-pw').value;
-  if (!name || !email || !pw) { showAuthError('Bitte alle Felder ausfüllen.'); return; }
+  if (!name || !email || !pw) { showAuthError('Please fill in all fields.'); return; }
   if (pw.length < 8) { showAuthError('Password must be at least 8 characters.'); return; }
   const btn = document.querySelector('#form-register .auth-btn');
-  btn.textContent = 'Wird erstellt…'; btn.disabled = true;
+  btn.textContent = 'Creating…'; btn.disabled = true;
   const res = await authFetch('register', { email, password: pw, name });
   btn.textContent = 'Create Account'; btn.disabled = false;
   if (res.error) { showAuthError(res.error); return; }
   saveTokens(res.token, res.refresh_token);
+  gaEvent('sign_up', 'auth', 'email');
   await loginAs(res.user);
 }
 
@@ -1453,6 +1463,7 @@ function demoLogin() {
     {ticker:'MSFT',name:'Microsoft Corp.',     shares:10, price:422.30,cost:380.00,dayChg:+0.66, yield:0.71, sector:'Technology',        annDiv:3.32, dg5:10.4, payout:24, years:21, ar:false,hy:false,gr:true, re:false, frequency:4, paymentMonths:[2,5,8,11]},
     {ticker:'MAIN',name:'Main Street Capital', shares:40, price:52.40, cost:44.80, dayChg:-0.38, yield:7.48, sector:'BDC',               annDiv:3.92, dg5:2.1,  payout:85, years:12, ar:false,hy:true, gr:false,re:true,  frequency:12,paymentMonths:[0,1,2,3,4,5,6,7,8,9,10,11]},
   ];
+  gaEvent('demo_start', 'engagement');
   loginAs({ name: 'Demo User', email: 'demo@dividendiq.com', plan: 'free' }, demoHoldings);
 }
 
@@ -1514,8 +1525,14 @@ function toggleFaq(el) {
 }
 
 // ═══════════════════════════════════════════════════
-// DARK MODE
+// GOOGLE ANALYTICS EVENTS
 // ═══════════════════════════════════════════════════
+function gaEvent(action, category, label='') {
+  if(typeof gtag !== 'undefined') {
+    gtag('event', action, { event_category: category, event_label: label });
+  }
+}
+
 function toggleDarkMode() {
   const isDark = document.body.classList.toggle('dark');
   localStorage.setItem('diq_dark', isDark ? '1' : '0');
@@ -3329,6 +3346,7 @@ function showTab(t){
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51TNo4oERGfPaX'; // wird aus ENV nicht direkt gebraucht — Checkout via Server
 
 async function startCheckout(plan) {
+  gaEvent('begin_checkout', 'monetization', plan);
   if (!currentUser || currentUser.email === 'demo@dividendiq.com') {
     closeModals();
     // Show auth screen with register tab
