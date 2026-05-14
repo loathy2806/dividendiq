@@ -981,7 +981,7 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
         <button class="res-tab active" onclick="setResTab('all',this)">Alle</button>
         <button class="res-tab" onclick="setResTab('aristocrats',this)">👑 Aristocrats</button>
         <button class="res-tab" onclick="setResTab('highyield',this)">🔥 High Yield</button>
-        <button class="res-tab" onclick="setResTab('growth',this)">🚀 Wachstum</button>
+        <button class="res-tab" onclick="setResTab('growth',this)">🚀 Growth</button>
         <button class="res-tab" onclick="setResTab('reits',this)">🏢 REITs & BDCs</button>
       </div>
       <div class="research-grid" id="research-grid"></div>
@@ -1945,7 +1945,7 @@ async function saveEditHolding() {
 // ── CSV EXPORT ───────────────────────────────────────
 function exportCSV() {
   if (!HOLDINGS.length) {
-    alert('Keine Positionen zum Exportieren.');
+    alert('No positions to export.');
     return;
   }
   const sym = CURRENCY_SYMBOL[currentCurrency] || '$';
@@ -2617,7 +2617,7 @@ function openDetail(ticker) {
     </div>`;
 
   // Dividends tab
-  document.getElementById('sd-divs').innerHTML = `<div class="sc-title">Dividenden-Details</div>
+  document.getElementById('sd-divs').innerHTML = `<div class="sc-title">Dividend Details</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
       <div class="sdh-metric"><div class="sdh-m-label">Forward Yield</div><div class="sdh-m-val green">${fwd>0?fmt(fwd,2)+'%':'—'}</div></div>
       <div class="sdh-metric"><div class="sdh-m-label">Payout Ratio</div><div class="sdh-m-val">${s.payout>0?s.payout+'%':'—'}</div></div>
@@ -3817,154 +3817,6 @@ async function renderBenchmark() {
       responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>` ${fmt(c.raw,2)}%`}}},
       scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'}}}
-    }
-  });
-}
-  const el = document.getElementById('benchmark-content');
-  if(!el) return;
-
-  if(!HOLDINGS.length) {
-    el.innerHTML = `<div class="sc"><div class="empty-state">
-      <div class="empty-icon">📈</div>
-      <div class="empty-title">No Portfolio to Compare</div>
-      <div class="empty-sub">Add stocks to your portfolio to compare performance against the S&P 500.</div>
-      <button class="add-btn" onclick="showTab('dashboard')">Go to Dashboard →</button>
-    </div></div>`;
-    return;
-  }
-
-  const p = calcPortfolio();
-  const portfolioYield = p.yield || 0;
-  const portfolioYoC   = p.yoc  || 0;
-
-  // S&P 500 reference data (historical averages)
-  const sp500 = {
-    avgReturn:    10.5,  // avg annual total return %
-    divYield:     1.5,   // current S&P 500 dividend yield %
-    ytdReturn:    8.2,   // approximate YTD
-    peRatio:      22.4,
-    description:  'S&P 500 Index (SPY)',
-  };
-
-  // Calculate portfolio metrics
-  const portfolioGL   = p.total > 0 && p.cost > 0 ? ((p.total - p.cost) / p.cost * 100) : 0;
-  const incomeAdvantage = portfolioYield - sp500.divYield;
-
-  el.innerHTML = `
-    <div class="sc" style="margin-bottom:18px;">
-      <div class="sc-title">📈 Portfolio vs S&P 500</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;">
-        <div class="sdh-metric" style="text-align:center;padding:18px;">
-          <div class="sdh-m-label">Your Dividend Yield</div>
-          <div class="sdh-m-val" style="font-size:24px;color:var(--c1d)">${fmt(portfolioYield,2)}%</div>
-          <div class="sdh-m-sub" style="color:${incomeAdvantage>0?'#16a34a':'#dc2626'}">
-            ${incomeAdvantage>0?'▲ +':'▼ '}${fmt(Math.abs(incomeAdvantage),2)}% vs S&P 500
-          </div>
-        </div>
-        <div class="sdh-metric" style="text-align:center;padding:18px;">
-          <div class="sdh-m-label">S&P 500 Yield</div>
-          <div class="sdh-m-val" style="font-size:24px;color:var(--text2)">${sp500.divYield}%</div>
-          <div class="sdh-m-sub">Historical average</div>
-        </div>
-        <div class="sdh-metric" style="text-align:center;padding:18px;">
-          <div class="sdh-m-label">Income Advantage</div>
-          <div class="sdh-m-val" style="font-size:24px;color:${incomeAdvantage>0?'#16a34a':'#dc2626'}">
-            ${incomeAdvantage>0?'+':''}${fmt(incomeAdvantage,2)}%
-          </div>
-          <div class="sdh-m-sub">${incomeAdvantage>0?'You beat S&P 500 income':'S&P 500 has higher yield'}</div>
-        </div>
-      </div>
-
-      <!-- Comparison Chart -->
-      <div style="position:relative;height:260px;margin-bottom:20px;">
-        <canvas id="benchmarkChart"></canvas>
-      </div>
-
-      <!-- Detailed Comparison Table -->
-      <table class="ht" style="margin-top:8px;">
-        <thead><tr>
-          <th style="text-align:left">Metric</th>
-          <th style="text-align:right">Your Portfolio</th>
-          <th style="text-align:right">S&P 500</th>
-          <th style="text-align:right">Difference</th>
-        </tr></thead>
-        <tbody>
-          <tr>
-            <td>Dividend Yield</td>
-            <td style="text-align:right;color:var(--c1d);font-weight:700">${fmt(portfolioYield,2)}%</td>
-            <td style="text-align:right">${sp500.divYield}%</td>
-            <td style="text-align:right;color:${portfolioYield>sp500.divYield?'#16a34a':'#dc2626'};font-weight:700">
-              ${portfolioYield>sp500.divYield?'+':''}${fmt(portfolioYield-sp500.divYield,2)}%
-            </td>
-          </tr>
-          <tr>
-            <td>Yield on Cost</td>
-            <td style="text-align:right;color:var(--c1d);font-weight:700">${fmt(portfolioYoC,2)}%</td>
-            <td style="text-align:right">—</td>
-            <td style="text-align:right">—</td>
-          </tr>
-          <tr>
-            <td>Portfolio Gain/Loss</td>
-            <td style="text-align:right;color:${portfolioGL>=0?'#16a34a':'#dc2626'};font-weight:700">
-              ${portfolioGL>=0?'+':''}${fmt(portfolioGL,2)}%
-            </td>
-            <td style="text-align:right">${sp500.ytdReturn}% YTD</td>
-            <td style="text-align:right;color:${portfolioGL>sp500.ytdReturn?'#16a34a':'#dc2626'};font-weight:700">
-              ${portfolioGL>sp500.ytdReturn?'+':''}${fmt(portfolioGL-sp500.ytdReturn,2)}%
-            </td>
-          </tr>
-          <tr>
-            <td>Avg S&P 500 Annual Return</td>
-            <td style="text-align:right">—</td>
-            <td style="text-align:right">${sp500.avgReturn}%</td>
-            <td style="text-align:right">—</td>
-          </tr>
-          <tr>
-            <td>Annual Dividend Income</td>
-            <td style="text-align:right;color:var(--c1d);font-weight:700">${fU(p.annDiv)}</td>
-            <td style="text-align:right">${fU(p.total * sp500.divYield/100)}</td>
-            <td style="text-align:right;color:#16a34a;font-weight:700">+${fU(p.annDiv - p.total * sp500.divYield/100)}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div style="margin-top:16px;padding:14px;background:var(--c1l);border-radius:10px;font-size:13px;color:var(--text2);line-height:1.6;">
-        <strong style="color:var(--c1d)">📌 Note:</strong> S&P 500 data shows historical averages. Past performance does not guarantee future results. This comparison is for informational purposes only and does not constitute investment advice.
-      </div>
-    </div>`;
-
-  // Render bar chart
-  if(benchmarkChartInst) benchmarkChartInst.destroy();
-  const ctx = document.getElementById('benchmarkChart').getContext('2d');
-  benchmarkChartInst = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['Dividend Yield', 'Yield on Cost', 'Gain/Loss', 'Annual Income ($)'],
-      datasets: [
-        {
-          label: 'Your Portfolio',
-          data: [portfolioYield, portfolioYoC, portfolioGL, Math.min(p.annDiv, 99999)],
-          backgroundColor: '#00c48c',
-          borderRadius: 6,
-        },
-        {
-          label: 'S&P 500',
-          data: [sp500.divYield, 0, sp500.ytdReturn, Math.min(p.total * sp500.divYield/100, 99999)],
-          backgroundColor: 'rgba(79,142,247,.6)',
-          borderRadius: 6,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top' },
-        tooltip: { callbacks: { label: c => ` ${fmt(c.raw,2)}${c.datasetIndex===0&&c.dataIndex===3?' ($)':'%'}` }}
-      },
-      scales: {
-        y: { beginAtZero: true, ticks: { callback: v => v+'%' } }
-      }
     }
   });
 }
