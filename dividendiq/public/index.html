@@ -2096,6 +2096,8 @@ function getPaymentMonths(ticker, frequency) {
   if(frequency===1)  return [11];
   return [2,5,8,11]; // default quarterly Mar/Jun/Sep/Dec
 }
+
+function getSectorColor(sector, index=0) {
   if(SECTOR_COLORS[sector]) return SECTOR_COLORS[sector];
   // Use palette for unknown sectors
   const palette = SECTOR_COLORS['_palette'];
