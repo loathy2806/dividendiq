@@ -1022,11 +1022,11 @@ body.dark .auth-screen{background:linear-gradient(135deg,#0f1117 0%,#1a1d27 100%
         <div class="sdh-metrics" id="sd-metrics"></div>
       </div>
       <div class="detail-tabs">
-        <button class="detail-tab" onclick="showDetailTab('chart',this)">Kursverlauf 🔒</button>
+        <button class="detail-tab" onclick="showDetailTab('chart',this)">${isPro()?'':'🔒 '}Chart</button>
         <button class="detail-tab active" onclick="showDetailTab('summary',this)">Summary</button>
         <button class="detail-tab" onclick="showDetailTab('dividends',this)">Dividends</button>
-        <button class="detail-tab" onclick="showDetailTab('competition',this)">Competition 🔒</button>
-        <button class="detail-tab" onclick="showDetailTab('financials',this)">Kennzahlen 🔒</button>
+        <button class="detail-tab" onclick="showDetailTab('competition',this)">${isPro()?'':'🔒 '}Competition</button>
+        <button class="detail-tab" onclick="showDetailTab('financials',this)">${isPro()?'':'🔒 '}Financials</button>
       </div>
       <div id="dtab-chart">
         <div class="sc">
@@ -1443,11 +1443,14 @@ async function doRegister() {
 function demoLogin() {
   hideLanding();
   document.getElementById('auth-screen').style.display = 'none';
+  // Set language to English for demo
+  currentLang = 'en';
+  localStorage.setItem('diq_lang', 'en');
   const demoHoldings = [
-    {ticker:'KO',  name:'Coca-Cola Co.',       shares:50, price:75.74, cost:68.00, dayChg:+0.74, yield:2.72, sector:'Consumer Staples', annDiv:2.06, dg5:4.1,  payout:72, years:62, ar:true, hy:false,gr:true, re:false, frequency:4, paymentMonths:[0,3,6,9]},   // Jan/Apr/Jul/Oct
-    {ticker:'JNJ', name:'Johnson & Johnson',   shares:20, price:158.60,cost:148.00,dayChg:-0.52, yield:3.18, sector:'Healthcare',        annDiv:5.04, dg5:6.2,  payout:44, years:61, ar:true, hy:false,gr:true, re:false, frequency:4, paymentMonths:[2,5,8,11]},  // Mar/Jun/Sep/Dec
-    {ticker:'MO',  name:'Altria Group Inc.',   shares:80, price:47.25, cost:42.00, dayChg:-0.84, yield:8.51, sector:'Consumer Staples',  annDiv:4.02, dg5:4.2,  payout:78, years:54, ar:true, hy:true, gr:false,re:false, frequency:4, paymentMonths:[0,3,6,9]},   // Jan/Apr/Jul/Oct
-    {ticker:'MSFT',name:'Microsoft Corp.',     shares:10, price:422.30,cost:380.00,dayChg:+0.66, yield:0.71, sector:'Technology',        annDiv:3.32, dg5:10.4, payout:24, years:21, ar:false,hy:false,gr:true, re:false, frequency:4, paymentMonths:[2,5,8,11]},  // Mar/Jun/Sep/Dec
+    {ticker:'KO',  name:'Coca-Cola Co.',       shares:50, price:75.74, cost:68.00, dayChg:+0.74, yield:2.72, sector:'Consumer Staples', annDiv:2.06, dg5:4.1,  payout:72, years:62, ar:true, hy:false,gr:true, re:false, frequency:4, paymentMonths:[0,3,6,9]},
+    {ticker:'JNJ', name:'Johnson & Johnson',   shares:20, price:158.60,cost:148.00,dayChg:-0.52, yield:3.18, sector:'Healthcare',        annDiv:5.04, dg5:6.2,  payout:44, years:61, ar:true, hy:false,gr:true, re:false, frequency:4, paymentMonths:[2,5,8,11]},
+    {ticker:'MO',  name:'Altria Group Inc.',   shares:80, price:47.25, cost:42.00, dayChg:-0.84, yield:8.51, sector:'Consumer Staples',  annDiv:4.02, dg5:4.2,  payout:78, years:54, ar:true, hy:true, gr:false,re:false, frequency:4, paymentMonths:[0,3,6,9]},
+    {ticker:'MSFT',name:'Microsoft Corp.',     shares:10, price:422.30,cost:380.00,dayChg:+0.66, yield:0.71, sector:'Technology',        annDiv:3.32, dg5:10.4, payout:24, years:21, ar:false,hy:false,gr:true, re:false, frequency:4, paymentMonths:[2,5,8,11]},
     {ticker:'MAIN',name:'Main Street Capital', shares:40, price:52.40, cost:44.80, dayChg:-0.38, yield:7.48, sector:'BDC',               annDiv:3.92, dg5:2.1,  payout:85, years:12, ar:false,hy:true, gr:false,re:true,  frequency:12,paymentMonths:[0,1,2,3,4,5,6,7,8,9,10,11]},
   ];
   loginAs({ name: 'Demo User', email: 'demo@dividendiq.com', plan: 'free' }, demoHoldings);
@@ -1471,8 +1474,9 @@ async function loginAs(user, preloadHoldings=null) {
   if(pe) pe.value = user.email;
   renderDashboard();
   updateFreemiumUI();
+  applyTranslations();
+  showTab('dashboard'); // always start on dashboard
   setTimeout(() => { if(HOLDINGS.length) loadLiveQuotes(); }, 800);
-  // Show onboarding for new users
   setTimeout(() => showOnboardingIfNew(), 600);
 }
 
@@ -1678,7 +1682,7 @@ function updateFreemiumUI() {
     if(pro) {
       btn.textContent = text.replace(' 🔒','');
     } else {
-      if(['Kursverlauf','Competition','Kennzahlen'].some(t=>text.includes(t)) && !text.includes('🔒')) {
+      if(['Kursverlauf','Competition','Kennzahlen','Chart','Financials'].some(t=>text.includes(t)) && !text.includes('🔒')) {
         btn.textContent = text + ' 🔒';
       }
     }
@@ -2131,24 +2135,28 @@ let pcInst=null, dhInst=null, compChartInst=null;
 
 // Known ISIN → Ticker mapping for common stocks
 const ISIN_TO_TICKER = {
+  // Flatex CSV stocks
   'US00287Y1091':'ABBV','US02079K1079':'GOOGL','US02079K3059':'GOOG',
   'US02209S1033':'MO','USN070592100':'ASML','US00206R1023':'T',
   'US1491231015':'CAT','US1667641005':'CVX','US1912161007':'KO',
-  'US4592001014':'IBM','US4781601046':'JNJ','US5949181045':'MSFT',
-  'US7170811035':'PFE','US7427181091':'PG','US92826C8394':'VZ',
-  'US2561631068':'DOW','US2605571031':'DUK','US3696041033':'GE',
-  'US4878361082':'KMB','US5312921016':'LMT','US5801351017':'MCD',
-  'US58013710011':'MCD','US6311011026':'NGG','US7561091049':'RHHBY',
-  'US8715031089':'STX','US8873891043':'TGT','US9024941034':'WBA',
-  'US9311421039':'WMT','US9789730104':'ZTS','US0378331005':'AAPL',
-  'US0231351067':'AMZN','US88160R1014':'TSLA','US4180561072':'HD',
-  'US4592001014':'IBM','US46090E1038':'IRM','US5728481015':'LOW',
-  'US3703341046':'GIS','US4592001014':'IBM','US2546871060':'DIS',
-  'US30231G1022':'XOM','US6745991058':'ORCL','US7134481081':'PEP',
-  'US4385161066':'HPQ','US0605051046':'BA','US1729081059':'CI',
-  'US2058871029':'MO','US6516391066':'NKE','US91324P1021':'UNP',
+  'DE0006305006':'DEZ','US30231G1022':'XOM','US4592001014':'IBM',
+  'IE00B5BMR087':'CSPX','US4781601046':'JNJ','US5398301094':'LMT',
+  'US56035L1044':'MAIN','US5801351017':'MCD','US5949181045':'MSFT',
+  'US68629Y1038':'ONL','US69608A1088':'PLTR','US7134481081':'PEP',
+  'US7427181091':'PG','DE0007008906':'RLT','US8825081040':'TXN',
+  'IE00BK5BQT80':'VWRA','US9344231041':'WBD',
+  // Other common US stocks
+  'US0378331005':'AAPL','US0231351067':'AMZN','US88160R1014':'TSLA',
+  'US4180561072':'HD','US46090E1038':'IRM','US5728481015':'LOW',
+  'US3703341046':'GIS','US2546871060':'DIS','US6745991058':'ORCL',
+  'US0605051046':'BA','US6516391066':'NKE','US91324P1021':'UNP',
+  'US7170811035':'PFE','US92826C8394':'VZ','US2561631068':'DOW',
+  'US2605571031':'DUK','US3696041033':'GE','US4878361082':'KMB',
+  'US6311011026':'NGG','US8873891043':'TGT','US9024941034':'WBA',
+  'US9311421039':'WMT','US9789730104':'ZTS','US4523271090':'INTC',
+  'US59491810015':'MRK','US4385161066':'HPQ','US2473617023':'DE',
+  // German/European stocks
   'DE0005140008':'DBK','DE0007164600':'SAP','DE0008404005':'ALV',
-  'US2473617023':'DE','US59491810015':'MRK','US4523271090':'INTC',
 };
 
 function isinToTicker(isin) {
@@ -2651,14 +2659,86 @@ function openDetail(ticker) {
       Real dividend history loaded via Finnhub API.
     </div>`;
 
-  // Competition
-  document.getElementById('comp-table').innerHTML = `<tr><td colspan="4" style="padding:14px;color:var(--text3);font-size:13px;">Competition data is loaded via Finnhub API.</td></tr>`;
+  // Competition — fetch peer data
+  const compTable = document.getElementById('comp-table');
+  compTable.innerHTML = `<tr><td colspan="5" style="padding:14px;text-align:center;color:var(--text3)">Loading peers…</td></tr>`;
 
-  // Financials
-  document.getElementById('sd-fin').innerHTML = `<div class="sc-title">Key Financials</div>
-    <div style="background:#fef9e7;border:1px solid #fcd34d;border-radius:var(--rsm);padding:14px;font-size:13px;color:#92400e;">
-      Key metrics (P/E, EPS, Cash Flow, Debt) are loaded via Finnhub API.
-    </div>`;
+  try {
+    const peersRes = await fmpFetch('peers', {symbol: s.ticker});
+    const peersData = Array.isArray(peersRes) ? peersRes[0] : peersRes;
+    const peerList = peersData?.peersList || [];
+
+    if(!peerList.length) {
+      compTable.innerHTML = `<tr><td colspan="5" style="padding:14px;color:var(--text3);font-size:13px;">No peer data available for ${s.ticker}.</td></tr>`;
+    } else {
+      const allTickers = [s.ticker, ...peerList.slice(0,4)];
+      const quotes = await Promise.all(allTickers.map(t => fmpFetch('quote', {symbol:t}).catch(()=>null)));
+
+      compTable.innerHTML = `
+        <thead><tr>
+          <th style="text-align:left">Ticker</th>
+          <th>Price</th>
+          <th>Yield</th>
+          <th>P/E</th>
+          <th>Mkt Cap</th>
+        </tr></thead>
+        <tbody>${quotes.map((q,i) => {
+          const data = Array.isArray(q) ? q[0] : q;
+          if(!data) return '';
+          const isSelf = i === 0;
+          const yld = data.dividendYield ? (data.dividendYield > 1 ? data.dividendYield : data.dividendYield*100) : 0;
+          const mcap = data.marketCap ? (data.marketCap >= 1e12 ? (data.marketCap/1e12).toFixed(1)+'T' : data.marketCap >= 1e9 ? (data.marketCap/1e9).toFixed(1)+'B' : (data.marketCap/1e6).toFixed(0)+'M') : '—';
+          return `<tr class="${isSelf?'self-row':''}">
+            <td><strong>${allTickers[i]}</strong>${isSelf?' ★':''}<div style="font-size:10px;color:var(--text3)">${(data.name||'').slice(0,20)}</div></td>
+            <td>${data.price?'$'+fmt(data.price,2):'—'}</td>
+            <td class="${yld>0?'green':''}">${yld>0?fmt(yld,2)+'%':'—'}</td>
+            <td>${data.pe?fmt(data.pe,1):'—'}</td>
+            <td>${mcap}</td>
+          </tr>`;
+        }).join('')}</tbody>`;
+    }
+  } catch(e) {
+    compTable.innerHTML = `<tr><td colspan="5" style="padding:14px;color:var(--text3);font-size:13px;">Competition data unavailable.</td></tr>`;
+  }
+
+  // Financials — fetch key metrics
+  const sdFin = document.getElementById('sd-fin');
+  sdFin.innerHTML = `<div class="sc-title">Key Financials</div><div style="text-align:center;padding:20px;color:var(--text3)">Loading…</div>`;
+
+  try {
+    const mRes = await fmpFetch('metrics', {symbol: s.ticker});
+    const m = Array.isArray(mRes) ? mRes[0] : mRes;
+
+    if(!m) throw new Error('No data');
+
+    const rows = [
+      ['P/E Ratio',    m.peRatio     ? fmt(m.peRatio,1)                : '—'],
+      ['EPS (TTM)',    m.eps         ? '$'+fmt(m.eps,2)                 : '—'],
+      ['Dividend/Share', m.dividendPerShare ? '$'+fmt(m.dividendPerShare,2) : '—'],
+      ['Dividend Yield', m.dividendYield ? fmt(m.dividendYield*100,2)+'%' : '—'],
+      ['Payout Ratio', m.payoutRatio ? fmt(m.payoutRatio*100,1)+'%'   : '—'],
+      ['ROE',          m.roe         ? fmt(m.roe*100,1)+'%'            : '—'],
+      ['Debt/Equity',  m.debtToEquity? fmt(m.debtToEquity,2)           : '—'],
+      ['Revenue Growth', m.revenueGrowth ? fmt(m.revenueGrowth*100,1)+'%' : '—'],
+    ].filter(([,v]) => v !== '—');
+
+    if(!rows.length) {
+      sdFin.innerHTML = `<div class="sc-title">Key Financials — ${s.ticker}</div>
+        <div style="padding:14px;color:var(--text3);font-size:13px;">No financial data available for ${s.ticker}.</div>`;
+    } else {
+      sdFin.innerHTML = `<div class="sc-title">Key Financials — ${s.ticker}</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;">
+          ${rows.map(([label,val]) => `
+            <div class="sdh-metric">
+              <div class="sdh-m-label">${label}</div>
+              <div class="sdh-m-val">${val}</div>
+            </div>`).join('')}
+        </div>`;
+    }
+  } catch(e) {
+    sdFin.innerHTML = `<div class="sc-title">Key Financials</div>
+      <div style="padding:14px;color:var(--text3);font-size:13px;">Financials unavailable for ${s.ticker}.</div>`;
+  }
 
   showTab('stock-detail');
   renderSimulatedPriceChart(s.price);
@@ -3348,36 +3428,39 @@ function parseCSV(text) {
   // Detect delimiter
   const delim = allLines[0]?.includes(';') ? ';' : allLines[0]?.includes('\t') ? '\t' : ',';
 
-  // Find the header row — skip intro rows until we find one with useful column names
+  // Find header row
   let headerIdx = -1;
   for(let i=0; i<Math.min(10, allLines.length); i++) {
     const lower = allLines[i].toLowerCase();
-    if(lower.includes('ticker') || lower.includes('symbol') || lower.includes('bezeichnung') ||
-       lower.includes('isin') || lower.includes('stück') || lower.includes('shares') ||
-       lower.includes('quantity') || lower.includes('nombre')) {
+    if(lower.includes('ticker')||lower.includes('symbol')||lower.includes('bezeichnung')||
+       lower.includes('isin')||lower.includes('shares')||lower.includes('quantity')) {
       headerIdx = i;
       break;
     }
   }
-  if(headerIdx === -1) headerIdx = 0; // fallback to first line
+  if(headerIdx === -1) headerIdx = 0;
 
-  const headerLine = allLines[headerIdx];
-  const headers = headerLine.split(delim).map(h => h.trim().replace(/['"]/g,'').toLowerCase());
+  const headers = allLines[headerIdx].split(delim).map(h=>h.trim().replace(/['"]/g,'').toLowerCase());
 
   const dataLines = allLines.slice(headerIdx+1).filter(l => {
     const trimmed = l.trim();
-    return trimmed && !trimmed.startsWith('Instrumentenart') && trimmed.split(delim).length > 2;
+    if(!trimmed) return false;
+    const first = trimmed.split(delim)[0]?.trim().toLowerCase();
+    // Skip summary/total rows
+    if(first === 'summe' || first === 'total' || first === 'gesamt') return false;
+    // Skip rows with too few columns
+    if(trimmed.split(delim).length < 3) return false;
+    return true;
   });
 
   return dataLines.map(line => {
-    const vals = line.split(delim).map(v => v.trim().replace(/^["']|["']$/g,''));
+    const vals = line.split(delim).map(v=>v.trim().replace(/^\uFEFF/,'').replace(/\x80/g,''));
     const row = {};
-    headers.forEach((h,i) => { if(h) row[h] = vals[i] || ''; });
-    // Also store raw vals for positional parsing
-    row['_vals'] = vals;
+    headers.forEach((h,i) => { if(h) row[h] = vals[i]||''; });
+    row['_vals']    = vals;
     row['_headers'] = headers;
     return row;
-  }).filter(r => Object.values(r).some(v => v && v !== ''));
+  }).filter(r => Object.values(r).some(v=>v&&v!==''));
 }
 
 async function parseExcel(file) {
@@ -3415,31 +3498,28 @@ async function parseExcel(file) {
 function detectColumns(headers) {
   const map = {};
 
-  // Ticker/Symbol — also check for ISIN column
-  const tickerCols = ['ticker','symbol','instrument'];
+  // ISIN column
+  const isinCols = ['isin','isin/wkn','wkn'];
+  map.isin = headers.find(h => isinCols.some(t => h.replace(/[^a-z]/g,'').includes(t.replace(/[^a-z]/g,''))));
+
+  // Name/Bezeichnung
+  const nameCols = ['bezeichnung','name','title','description'];
+  map.name = headers.find(h => nameCols.some(t => h.includes(t)));
+  if(!map.name) map.name = headers[0]; // first column is usually name
+
+  // Ticker/Symbol
+  const tickerCols = ['ticker','symbol'];
   map.ticker = headers.find(h => tickerCols.some(t => h.includes(t)));
 
-  // ISIN column (German brokers use this instead of ticker)
-  const isinCols = ['isin','wkn','isin/wkn'];
-  map.isin = headers.find(h => isinCols.some(t => h.includes(t)));
+  // Shares — handle "stück/nominalwert" and similar
+  const sharesCols = ['stück/nominalwert','stck/nominalwert','stück','shares','quantity','qty','anzahl','units','nominal'];
+  map.shares = headers.find(h => sharesCols.some(t => h.replace(/\//g,'').includes(t.replace(/\//g,''))));
+  if(!map.shares) map.shares = headers.find(h => h.includes('stck') || h.includes('st\xfcck'));
 
-  // Name/Bezeichnung column
-  const nameCols = ['bezeichnung','name','title','description','instrument'];
-  map.name = headers.find(h => nameCols.some(t => h.includes(t)));
-
-  // Shares/Stück
-  const sharesCols = ['stück','stk','shares','quantity','qty','anzahl','units','menge','nominal','nominalwert','stück/nominalwert'];
-  map.shares = headers.find(h => sharesCols.some(t => h.includes(t)));
-
-  // Cost/Kaufkurs — prioritize average cost over current price
-  const costCols = ['kaufkurs','einstands','einstand','averagecost','average cost','avg cost','avgcost','cost','purchase','paid','buyprice','kauf'];
-  map.cost = headers.find(h => costCols.some(t => h.replace(/\s/g,'').includes(t.replace(/\s/g,''))));
-
-  // Fallback to price if no cost
-  if(!map.cost) {
-    const priceCols = ['marktkurs','price','kurs','value','cours'];
-    map.cost = headers.find(h => priceCols.some(t => h.includes(t)));
-  }
+  // Cost — Kaufkurs comes AFTER a currency column in Flatex
+  // Headers: ...;Marktkurs;;Kaufkurs;;... → index of kaufkurs
+  const costCols = ['kaufkurs','einstandskurs','averagecost','avg cost','cost','purchase','buyprice','kauf'];
+  map.cost = headers.find(h => costCols.some(t => h.replace(/[^a-z]/g,'').includes(t.replace(/[^a-z]/g,''))));
 
   return map;
 }
